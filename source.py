@@ -3,6 +3,7 @@ import node
 import asyncio
 
 
+#source or first node of the network
 class Source(node.Node):
     neighbours = set()
 
@@ -16,7 +17,6 @@ class Source(node.Node):
         return len(self.neighbours)
 
     def send(self, payload, receiver_host, receiver_port):
-        payload = "Hello world"
         loop = asyncio.get_event_loop()
         loop.run_until_complete(self.tcp_echo_client(payload, receiver_host, receiver_port, loop))
         loop.close()
@@ -33,3 +33,8 @@ class Source(node.Node):
 
         print('Close the socket')
         writer.close()
+
+
+#Test run
+src = Source()
+src.send("test", '127.0.0.1', 12345)

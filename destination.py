@@ -3,12 +3,13 @@ import node
 import asyncio
 
 
+#destination or sink or last node of the network
 class Destination(node.Node):
 
     def run_server(self):
         loop = asyncio.get_event_loop()
-        coro = asyncio.start_server(self.handle_echo, self.host, self.port, loop=loop)
-        server = loop.run_until_complete(coro)
+        job = asyncio.start_server(self.handle_echo, self.host, self.port, loop=loop)
+        server = loop.run_until_complete(job)
 
         print('Serving on {}'.format(server.sockets[0].getsockname()))
         try:
@@ -34,3 +35,8 @@ class Destination(node.Node):
 
         print("Close the client socket")
         writer.close()
+
+
+#Test run
+dest = Destination('127.0.0.1', 12345)
+dest.run_server()

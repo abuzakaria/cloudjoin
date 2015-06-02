@@ -1,6 +1,7 @@
 __author__ = 'Zakaria'
 
 
+#superclass for all types of nodes
 class Node:
     host = None
     port = None
