@@ -1,14 +1,16 @@
 __author__ = 'Zakaria'
 import node
 import asyncio
+import random
 
 
 #source or first node of the network
 class Source(node.Node):
-    neighbours = set()
+
+    neighbours = []
 
     def add_neighbour(self, neighbour):
-        self.neighbours.add(neighbour)
+        self.neighbours.append(neighbour)
 
     def remove_neighbour(self, neighbour):
         self.neighbours.remove(neighbour)
@@ -25,16 +27,19 @@ class Source(node.Node):
     def tcp_echo_client(self, message, receiver_host, receiver_port, loop):
         reader, writer = yield from asyncio.open_connection(receiver_host, receiver_port, loop=loop)
 
-        print('Send: %r' % message)
+        print('SND: %r' % message)
         writer.write(message.encode())
+        yield from writer.drain()
 
-        data = yield from reader.read(self.window_size)
-        print('Received: %r' % data.decode())
+        # data = yield from reader.read(self.window_size)
+        # print('Received: %r' % data.decode())
 
-        print('Close the socket')
+        print('MSG: Close the socket')
         writer.close()
 
 
 #Test run
-src = Source()
-src.send("test", '127.0.0.1', 12345)
+# src = Source()
+# src.add_neighbour(('127.0.0.1', 12345))
+# n = src.neighbours[random.randint(0, src.count_neighbours()-1)]
+# src.send("test", n[0], n[1])

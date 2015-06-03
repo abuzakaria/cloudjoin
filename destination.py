@@ -11,7 +11,7 @@ class Destination(node.Node):
         job = asyncio.start_server(self.handle_echo, self.host, self.port, loop=loop)
         server = loop.run_until_complete(job)
 
-        print('Serving on {}'.format(server.sockets[0].getsockname()))
+        print('MSG: Serving on {}'.format(server.sockets[0].getsockname()))
         try:
             loop.run_forever()
         except KeyboardInterrupt:
@@ -27,16 +27,20 @@ class Destination(node.Node):
         data = yield from reader.read(self.window_size)
         message = data.decode()
         sender = writer.get_extra_info('peername')
-        print("Received %r from %r" % (message, sender))
+        if message:
+            self.do(message, sender)
 
-        print("Send: %r" % message)
-        writer.write(data)
-        yield from writer.drain()
+        # print("Send: %r" % message)
+        # writer.write(data)
+        # yield from writer.drain()
 
-        print("Close the client socket")
+        print("MSG: Close the client socket")
         writer.close()
+
+    def do(self, message, sender):
+        print("RCV: %r < %r" % (message, sender))
 
 
 #Test run
-dest = Destination('127.0.0.1', 12345)
-dest.run_server()
+# dest = Destination('127.0.0.1', 12346)
+# dest.run_server()
