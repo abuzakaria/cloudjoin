@@ -21,7 +21,7 @@ class Source(node.Node):
     def send(self, payload, receiver_host, receiver_port):
         loop = asyncio.get_event_loop()
         loop.run_until_complete(self.tcp_echo_client(payload, receiver_host, receiver_port, loop))
-        loop.close()
+        # loop.close()
 
     @asyncio.coroutine
     def tcp_echo_client(self, message, receiver_host, receiver_port, loop):
@@ -39,10 +39,9 @@ class Source(node.Node):
 
 
 #Test run
-# from source import Source
-# import random
 if __name__ == '__main__':
     src = Source('127.0.0.1', '12344')
-    src.add_neighbour(('127.0.0.1', 12345))
-    n = src.neighbours[random.randint(0, src.count_neighbours()-1)]
-    src.send("ok", n[0], n[1])
+    hst = '127.0.0.1'
+    for prt in range(12345, 12350):
+        src.add_neighbour((hst, prt))
+        src.send("ok2", hst, prt)

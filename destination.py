@@ -42,7 +42,6 @@ class Destination(node.Node):
 
 
 #Test run
-# from destination import Destination
 if __name__ == '__main__':
-    dest = Destination('127.0.0.1', 12346)
+    dest = Destination('127.0.0.1', 12350)
     dest.run_server()
