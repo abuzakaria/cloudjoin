@@ -12,4 +12,3 @@ class Node:
             self.host = host
         if port:
             self.port = port
-    

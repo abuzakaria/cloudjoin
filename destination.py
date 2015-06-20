@@ -34,13 +34,15 @@ class Destination(node.Node):
         # writer.write(data)
         # yield from writer.drain()
 
-        print("MSG: Close the client socket")
+        print("MSG: Close receiving socket")
         writer.close()
 
     def do(self, message, sender):
-        print("RCV: %r < %r" % (message, sender))
+        print(str(sender) + ' >| ' + message + ' |> ' + str(self.port))
 
 
 #Test run
-# dest = Destination('127.0.0.1', 12346)
-# dest.run_server()
+# from destination import Destination
+if __name__ == '__main__':
+    dest = Destination('127.0.0.1', 12346)
+    dest.run_server()
