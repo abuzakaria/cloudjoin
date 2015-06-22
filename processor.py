@@ -2,9 +2,7 @@ __author__ = 'Zakaria'
 
 from source import Source
 from destination import Destination
-from packet import Packet
-from left_region import LeftRegion
-from right_region import RightRegion
+from region import Region
 import asyncio
 
 
@@ -15,24 +13,29 @@ class Processor(Source, Destination):
             self.host = host
         if port:
             self.port = port
-        self.window_size = window_size
-        self.LR = LeftRegion(window_size)
-        self.RR = RightRegion(window_size)
+        self.LR = Region('S', window_size)
+        self.RR = Region('R', window_size)
 
     def set_window_size(self, n):
-        self.window_size = n
+        self.LR.change_window_size(n)
+        self.RR.change_window_size(n)
 
-    def do(self, message, sender):
-        print(str(sender) + '>' + str(message) + '>' + str(self.port))
-        if message.header == 'R':
-            self.RR.store_r(message)
-            self.LR.process_r(message)
-        elif message.header == 'S':
-            self.LR.store_s(message)
-            self.RR.process_s(message)
+    def do(self, packet, sender):
+        # print(str(sender) + ' >| ' + packet.header + str(packet.data[0]) + ' |> ' + str(self.port))
+        join_result = None
+        if packet.header == 'R':
+            if int(packet.data[0]) % 5 == self.port % 5:
+                self.RR.store(packet)      # store r
+            join_result = self.LR.process(packet)
 
-        # receiver = self.neighbours[0]       # for now this is the destination neighbour
-        # self.send(message, receiver[0], receiver[1])
+        elif packet.header == 'S':
+            if int(packet.data[0]) % 5 == self.port % 5:
+                self.LR.store(packet)      # store s
+            join_result = self.RR.process(packet)
+
+        receiver = self.neighbours[0]       # for now this is the only destination neighbour
+        if len(join_result.data) > 0:
+            self.send(join_result, receiver[0], receiver[1])
 
     def send(self, payload, receiver_host, receiver_port):
         loop = asyncio.get_event_loop()

@@ -2,6 +2,8 @@ __author__ = 'Zakaria'
 
 import node
 import asyncio
+import pickle
+import json
 from packet import Packet
 
 
@@ -26,21 +28,25 @@ class Destination(node.Node):
 
     @asyncio.coroutine
     def handle_echo(self, reader, writer):
-        data = yield from reader.read(self.window_size)
-        message = data.decode()
+        data = yield from reader.read()
+        packet = pickle.loads(data)
         sender = writer.get_extra_info('peername')
-        if message:
-            self.do(message, sender)
+        if packet:
+            self.do(packet, sender)
 
         # print("Send: %r" % message)
         # writer.write(data)
         # yield from writer.drain()
 
-        print("MSG: Close receiving socket")
+        # print("MSG: Close receiving socket")
         writer.close()
 
-    def do(self, message, sender):
-        print(str(sender) + ' >| ' + str(message) + ' |> ' + str(self.port))
+    def do(self, packet, sender):
+        # print(str(sender) + ' >| ' + packet.header + str(len(packet.data)) + ' |> ' + str(self.port))
+        # print(packet.header + str(len(packet.data)))
+        for p in packet.data:
+            print(packet.header + ' : ' + json.dumps(p))
+        print("----------------------------------------")
 
 
 #Test run

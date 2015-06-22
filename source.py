@@ -2,6 +2,7 @@ __author__ = 'Zakaria'
 import node
 import asyncio
 import time
+import pickle
 from packet import Packet
 
 
@@ -19,23 +20,23 @@ class Source(node.Node):
     def count_neighbours(self):
         return len(self.neighbours)
 
-    def send(self, payload, receiver_host, receiver_port):
+    def send(self, message, receiver_host, receiver_port):
         loop = asyncio.get_event_loop()
-        loop.run_until_complete(self.tcp_echo_client(payload, receiver_host, receiver_port, loop))
+        loop.run_until_complete(self.tcp_echo_client(message, receiver_host, receiver_port, loop))
         # loop.close()
 
     @asyncio.coroutine
     def tcp_echo_client(self, message, receiver_host, receiver_port, loop):
         reader, writer = yield from asyncio.open_connection(receiver_host, receiver_port, loop=loop)
 
-        print(str(self.port) + ' >| ' + message + ' |> ' + str(receiver_port))
-        writer.write(message.encode())
+        print(str(self.port) + ' >| ' + message.header + str(message.data[0]) + ' |> ' + str(receiver_port))
+        writer.write(pickle.dumps(message))
         yield from writer.drain()
 
         # data = yield from reader.read(self.window_size)
         # print('Received: %r' % data.decode())
 
-        print('MSG: Close sending socket')
+        print('----------------')
         writer.close()
 
 ###########################################################
@@ -64,6 +65,7 @@ if __name__ == '__main__':
         pack.append_data(lines[i+1])
         pack.append_data(lines[i+2])
 
+        # src.send(pack, hst, 12350)
         for prt in range(12345, 12350):
             src.send(pack, hst, prt)
         time.sleep(2)
