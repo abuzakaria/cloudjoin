@@ -2,8 +2,7 @@ __author__ = 'Zakaria'
 
 from source import Source
 from destination import Destination
-from random import randint
-from threading import Thread
+from packet import Packet
 import asyncio
 
 
@@ -12,7 +11,7 @@ class Processor(Source, Destination):
 
     def do(self, message, sender):
         print(str(sender) + '>' + message + '>' + str(self.port))
-        receiver = self.neighbours[randint(0, self.count_neighbours()-1)]
+        receiver = self.neighbours[0]       # for now this is the destination neighbour
         self.send(message, receiver[0], receiver[1])
 
     def send(self, payload, receiver_host, receiver_port):

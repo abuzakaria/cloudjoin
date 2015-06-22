@@ -1,6 +1,8 @@
 __author__ = 'Zakaria'
+
 import node
 import asyncio
+from packet import Packet
 
 
 #destination or sink or last node of the network

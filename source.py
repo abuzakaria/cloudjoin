@@ -1,7 +1,7 @@
 __author__ = 'Zakaria'
 import node
 import asyncio
-import random
+from packet import Packet
 
 
 #source or first node of the network
