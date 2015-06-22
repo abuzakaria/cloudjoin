@@ -1,6 +1,7 @@
 __author__ = 'Zakaria'
 import node
 import asyncio
+import time
 from packet import Packet
 
 
@@ -37,11 +38,32 @@ class Source(node.Node):
         print('MSG: Close sending socket')
         writer.close()
 
+###########################################################
+
+
+lines = list()
+
+
+def get_data():
+    global lines
+    with open("data.txt") as f:
+        lines = f.read().splitlines()
 
 #Test run
 if __name__ == '__main__':
     src = Source('127.0.0.1', '12344')
     hst = '127.0.0.1'
+    # add processor nodes as neighbors
     for prt in range(12345, 12350):
         src.add_neighbour((hst, prt))
-        src.send("ok2", hst, prt)
+
+    get_data()
+    l = len(lines)
+    for i in range(0, l, 3):    # loop through 3 lines at a time
+        pack = Packet(lines[i])
+        pack.append_data(lines[i+1])
+        pack.append_data(lines[i+2])
+
+        for prt in range(12345, 12350):
+            src.send(pack, hst, prt)
+        time.sleep(2)

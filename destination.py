@@ -40,7 +40,7 @@ class Destination(node.Node):
         writer.close()
 
     def do(self, message, sender):
-        print(str(sender) + ' >| ' + message + ' |> ' + str(self.port))
+        print(str(sender) + ' >| ' + str(message) + ' |> ' + str(self.port))
 
 
 #Test run
