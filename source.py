@@ -21,15 +21,27 @@ class Source(node.Node):
         return len(self.neighbours)
 
     def send(self, message, receiver_host, receiver_port):
+        message.sender = self.name
         loop = asyncio.get_event_loop()
-        loop.run_until_complete(self.tcp_echo_client(message, receiver_host, receiver_port, loop))
+        loop.run_until_complete(self.tcp_client(message, receiver_host, receiver_port, loop))
         # loop.close()
 
+    def distribute(self, packet):
+        for (host, port) in self.neighbours:
+
+            if int(packet.data[0]) % 5 == port % 5:
+                print(host + ' ' + str(port))
+                packet.store = True
+            else:
+                packet.store = False
+            self.send(packet, host, port)
+
+
     @asyncio.coroutine
-    def tcp_echo_client(self, message, receiver_host, receiver_port, loop):
+    def tcp_client(self, message, receiver_host, receiver_port, loop):
         reader, writer = yield from asyncio.open_connection(receiver_host, receiver_port, loop=loop)
 
-        print(str(self.port) + ' >| ' + message.header + str(message.data[0]) + ' |> ' + str(receiver_port))
+        print(self.name + ' >| ' + message.type + str(message.data[0]) + ' |> ' + str(receiver_port))
         writer.write(pickle.dumps(message))
         yield from writer.drain()
 
@@ -52,7 +64,7 @@ def get_data():
 
 #Test run
 if __name__ == '__main__':
-    src = Source('127.0.0.1', '12344')
+    src = Source('source', '127.0.0.1', '12344')
     hst = '127.0.0.1'
     # add processor nodes as neighbors
     for prt in range(12345, 12350):
@@ -65,7 +77,6 @@ if __name__ == '__main__':
         pack.append_data(lines[i+1])
         pack.append_data(lines[i+2])
 
-        # src.send(pack, hst, 12350)
-        for prt in range(12345, 12350):
-            src.send(pack, hst, prt)
-        time.sleep(2)
+        src.distribute(pack)
+        # src.send(pack, '127.0.0.1', 12350)
+        time.sleep(1)

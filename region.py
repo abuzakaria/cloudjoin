@@ -11,7 +11,7 @@ class Region():
         self.queue = deque()      #readonly maxlen is available if needed.
 
     def store(self, packet):
-        if packet.header != self.store_type:
+        if packet.type != self.store_type:
             return False
         if len(self.queue) >= self.window_size:
             self.queue.popleft()
@@ -23,11 +23,11 @@ class Region():
     def process(self, guest):
         join_result = Packet('X')
         is_empty = True
-        if guest.header == self.store_type:
+        if guest.type == self.store_type:
             return None
 
         for host in self.queue:
-            print(host.header + str(host.data[0]) + ' X ' + guest.header + str(guest.data[0]))
+            print(host.type + str(host.data[0]) + ' X ' + guest.type + str(guest.data[0]))
 
             if host.data[0] == guest.data[0]:   # join matching by id, assumption id is in data[0]
                 join_result.data.append(host.data + guest.data)

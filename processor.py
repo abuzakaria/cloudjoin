@@ -8,11 +8,13 @@ import asyncio
 
 #cores or joining nodes.
 class Processor(Source, Destination):
-    def __init__(self, host=None, port=None, window_size=100):
+    def __init__(self, name=None, host=None, port=None, window_size=100):
         if host:
             self.host = host
         if port:
             self.port = port
+        if name:
+            self.name = name
         self.LR = Region('S', window_size)
         self.RR = Region('R', window_size)
 
@@ -21,15 +23,15 @@ class Processor(Source, Destination):
         self.RR.change_window_size(n)
 
     def do(self, packet, sender):
-        # print(str(sender) + ' >| ' + packet.header + str(packet.data[0]) + ' |> ' + str(self.port))
+        # print(str(sender) + ' >| ' + packet.type + str(packet.data[0]) + ' |> ' + str(self.port))
         join_result = None
-        if packet.header == 'R':
-            if int(packet.data[0]) % 5 == self.port % 5:
+        if packet.type == 'R':
+            if packet.store is True:
                 self.RR.store(packet)      # store r
             join_result = self.LR.process(packet)
 
-        elif packet.header == 'S':
-            if int(packet.data[0]) % 5 == self.port % 5:
+        elif packet.type == 'S':
+            if packet.store is True:
                 self.LR.store(packet)      # store s
             join_result = self.RR.process(packet)
 
@@ -38,8 +40,9 @@ class Processor(Source, Destination):
             self.send(join_result, receiver[0], receiver[1])
 
     def send(self, payload, receiver_host, receiver_port):
+        payload.sender = self.name
         loop = asyncio.get_event_loop()
-        asyncio.async(self.tcp_echo_client(payload, receiver_host, receiver_port, loop))
+        asyncio.async(self.tcp_client(payload, receiver_host, receiver_port, loop))
 
 # if __name__ == '__main__':
 #     hst = '127.0.0.1'
