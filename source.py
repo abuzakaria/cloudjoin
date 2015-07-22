@@ -8,27 +8,30 @@ from packet import Packet
 
 #source or first node of the network
 class Source(node.Node):
+    lines = list()
+    list_of_nodes = []
 
-    neighbours = []
+    def add_node_to_list(self, neighbour):
+        """
 
-    def add_neighbour(self, neighbour):
-        self.neighbours.append(neighbour)
+        :param neighbour:
+        """
+        if neighbour not in self.list_of_nodes:
+            self.list_of_nodes.append(neighbour)
 
-    def remove_neighbour(self, neighbour):
-        self.neighbours.remove(neighbour)
+    def remove_node_from_list(self, neighbour):
+        """
 
-    def count_neighbours(self):
-        return len(self.neighbours)
-
-    def send(self, message, receiver_host, receiver_port):
-        message.sender = self.name
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(self.tcp_client(message, receiver_host, receiver_port, loop))
-        # loop.close()
+        :param neighbour:
+        """
+        self.list_of_nodes.remove(neighbour)
 
     def distribute(self, packet):
-        for (host, port) in self.neighbours:
-
+        """
+        distributes packet to different processor nodes
+        :param packet: packet to distribute
+        """
+        for (host, port) in self.list_of_nodes:
             if int(packet.data[0]) % 5 == port % 5:
                 print(host + ' ' + str(port))
                 packet.store = True
@@ -36,20 +39,38 @@ class Source(node.Node):
                 packet.store = False
             self.send(packet, host, port)
 
+    def do(self, packet):
+        print(packet.type + ' from ' + packet.sender['name'])
+        if packet.type == 'H':
+            self.add_node_to_list((packet.sender['host'], packet.sender['port']))
+        print(self.list_of_nodes)
 
-    @asyncio.coroutine
-    def tcp_client(self, message, receiver_host, receiver_port, loop):
-        reader, writer = yield from asyncio.open_connection(receiver_host, receiver_port, loop=loop)
+    # def send(self, message, receiver_host, receiver_port):
+    #         """
+    #
+    #         :param message:
+    #         :param receiver_host:
+    #         :param receiver_port:
+    #         """
+    #         message.sender = self.name
+    #         loop = asyncio.get_event_loop()
+    #         loop.run_until_complete(self.tcp_client(message, receiver_host, receiver_port, loop))
+            # loop.close()
 
-        print(self.name + ' >| ' + message.type + str(message.data[0]) + ' |> ' + str(receiver_port))
-        writer.write(pickle.dumps(message))
-        yield from writer.drain()
 
-        # data = yield from reader.read(self.window_size)
-        # print('Received: %r' % data.decode())
-
-        print('----------------')
-        writer.close()
+    # @asyncio.coroutine
+    # def tcp_client(self, message, receiver_host, receiver_port, loop):
+    #     reader, writer = yield from asyncio.open_connection(receiver_host, receiver_port, loop=loop)
+    #
+    #     print(self.name + ' >| ' + message.type + str(message.data[0]) + ' |> ' + str(receiver_port))
+    #     writer.write(pickle.dumps(message))
+    #     yield from writer.drain()
+    #
+    #     # data = yield from reader.read(self.window_size)
+    #     # print('Received: %r' % data.decode())
+    #
+    #     print('----------------')
+    #     writer.close()
 
 ###########################################################
 
@@ -67,8 +88,8 @@ if __name__ == '__main__':
     src = Source('source', '127.0.0.1', '12344')
     hst = '127.0.0.1'
     # add processor nodes as neighbors
-    for prt in range(12345, 12350):
-        src.add_neighbour((hst, prt))
+    # for prt in range(12345, 12350):
+    #     src.add_neighbour((hst, prt))
 
     get_data()
     l = len(lines)
@@ -77,6 +98,7 @@ if __name__ == '__main__':
         pack.append_data(lines[i+1])
         pack.append_data(lines[i+2])
 
-        src.distribute(pack)
+        # src.distribute(pack)
+        src.run_server()
         # src.send(pack, '127.0.0.1', 12350)
         time.sleep(1)
