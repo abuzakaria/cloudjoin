@@ -62,12 +62,12 @@ class Processor(Node):
     #     loop = asyncio.get_event_loop()
     #     asyncio.async(self.tcp_client(payload, receiver_host, receiver_port, loop))
 
-if __name__ == '__main__':
-    p = Processor('12346', '127.0.0.1', 12346)
-    p.register_membership(('127.0.0.1', 12344))
-    p.next_node = ('127.0.0.1', 12350)
-    # p.add_neighbour(('127.0.0.1', 12350))
-    p.run_server()
+# if __name__ == '__main__':
+#     p = Processor('12346', '127.0.0.1', 12346)
+#     p.register_membership(('127.0.0.1', 12344))
+#     p.next_node = ('127.0.0.1', 12350)
+#     # p.add_neighbour(('127.0.0.1', 12350))
+#     p.run_server()
 
 
 #     hst = '127.0.0.1'

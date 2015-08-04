@@ -2,36 +2,52 @@ __author__ = 'Zakaria'
 import node
 import asyncio
 import time
-import pickle
+import constants
 from packet import Packet
 
 
 #source or first node of the network
 class Source(node.Node):
     lines = list()
-    list_of_nodes = []
+    active_nodes = []
+    is_membership_protocol_running = False
 
-    def add_node_to_list(self, neighbour):
+    def add_node_to_list(self, reporting_node):
         """
 
-        :param neighbour:
+        :param reporting_node:
         """
-        if neighbour not in self.list_of_nodes:
-            self.list_of_nodes.append(neighbour)
+        for row in self.active_nodes:
+            if row:
+                if reporting_node == row[0]:
+                    row[1] = time.time()
+                    return
 
-    def remove_node_from_list(self, neighbour):
+        self.active_nodes.append([reporting_node, time.time()])
+
+    def remove_node_from_list(self, inactive_node):
         """
 
-        :param neighbour:
+        :param inactive_node:
         """
-        self.list_of_nodes.remove(neighbour)
+        for row in self.active_nodes:
+            if inactive_node == row[0]:
+                self.active_nodes.remove(row)
+
+    def check_active_nodes(self, interval):
+        current_time = time.time()
+        for row in self.active_nodes:
+            if row[1] + interval < current_time:
+                self.remove_node_from_list(row[0])
+        self.loop.call_later(interval, self.check_active_nodes, interval)
 
     def distribute(self, packet):
         """
         distributes packet to different processor nodes
         :param packet: packet to distribute
         """
-        for (host, port) in self.list_of_nodes:
+        for row in self.active_nodes:
+            (host, port) = row[0]
             if int(packet.data[0]) % 5 == port % 5:
                 print(host + ' ' + str(port))
                 packet.store = True
@@ -43,7 +59,10 @@ class Source(node.Node):
         print(packet.type + ' from ' + packet.sender['name'])
         if packet.type == 'H':
             self.add_node_to_list((packet.sender['host'], packet.sender['port']))
-        print(self.list_of_nodes)
+            if self.is_membership_protocol_running is False:
+                self.is_membership_protocol_running = True
+                self.check_active_nodes(constants.CHECK_INTERVAL)
+        print(self.active_nodes)
 
     # def send(self, message, receiver_host, receiver_port):
     #         """
