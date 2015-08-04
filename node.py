@@ -68,13 +68,15 @@ class Node:
         :param receiver_port: port of receiver
         """
         # print(self.name + ' >| ' + message.type + str(message.data[0]) + ' |> ' + str(receiver_port))
+        try:
+            reader, writer = yield from asyncio.open_connection(receiver_host, receiver_port, loop=self.loop)
+            writer.write(pickle.dumps(message))
+            yield from writer.drain()
 
-        reader, writer = yield from asyncio.open_connection(receiver_host, receiver_port, loop=self.loop)
-        writer.write(pickle.dumps(message))
-        yield from writer.drain()
-
-        print('----------------')
-        writer.close()
+            print('----------------')
+            writer.close()
+        except:
+            print("ERROR: Sending Failed")
 
     def run_server(self):
         """
