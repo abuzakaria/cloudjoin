@@ -44,7 +44,7 @@ class Node:
         Sends a heartbeat to manager after a defined interval
         :param interval: gap between heartbeats
         """
-        p = Packet('H')
+        p = Packet(constants.DATATYPE_HEARTBEAT)
         self.send(p, self.membership_manager[0], self.membership_manager[1])
         self.loop.call_later(interval, self.send_heartbeat, interval)
 

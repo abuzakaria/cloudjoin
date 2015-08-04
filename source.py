@@ -57,7 +57,7 @@ class Source(node.Node):
 
     def do(self, packet):
         print(packet.type + ' from ' + packet.sender['name'])
-        if packet.type == 'H':
+        if packet.type == constants.DATATYPE_HEARTBEAT:
             self.add_node_to_list((packet.sender['host'], packet.sender['port']))
             if self.is_membership_protocol_running is False:
                 self.is_membership_protocol_running = True
