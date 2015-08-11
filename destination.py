@@ -48,7 +48,7 @@ class Destination(node.Node):
         :param packet:
         :param sender:
         """
-        print(packet.sender + ' >| ' + packet.type + str(len(packet.data)) + ' |> ' + self.name)
+        print(packet.type + str(len(packet.data)))
         # print(packet.type + str(len(packet.data)))
         for p in packet.data:
             print(packet.type + ' : ' + json.dumps(p))

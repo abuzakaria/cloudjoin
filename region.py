@@ -4,6 +4,7 @@ from collections import deque
 from packet import Packet
 import constants
 
+
 class Region():
     def __init__(self, store_type, window_size=constants.WINDOW_SIZE):
         self.window_size = window_size
@@ -20,6 +21,15 @@ class Region():
             self.queue.append(packet)
         return True
 
+    def decrease_size(self, n=1):
+        """
+        remove number of packets
+        :param n: number of packet
+        """
+        while n > 0:
+            self.queue.popleft()
+            n -= 1
+
     def process(self, guest):
         join_result = Packet(constants.DATATYPE_JOIN)
         is_empty = True
@@ -33,7 +43,7 @@ class Region():
                 join_result.data.append(host.data + guest.data)
                 is_empty = False
         if is_empty is False:
-            join_result.data.append('*')
+            join_result.data.append(constants.PUNCTUATION)
         else:
             print("---------------------")
 

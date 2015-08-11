@@ -67,13 +67,15 @@ class Node:
         :param receiver_host: host of receiver
         :param receiver_port: port of receiver
         """
-        # print(self.name + ' >| ' + message.type + str(message.data[0]) + ' |> ' + str(receiver_port))
+        print(self.name + ' >| ' + message.type + ' |> ' + str(receiver_port))
         try:
             reader, writer = yield from asyncio.open_connection(receiver_host, receiver_port, loop=self.loop)
             writer.write(pickle.dumps(message))
             yield from writer.drain()
 
-            print('----------------')
+            # response = yield from reader.read()
+            # print(pickle.loads(response))
+
             writer.close()
         except:
             print("ERROR: Sending Failed")
@@ -106,12 +108,14 @@ class Node:
         """
         data = yield from reader.read()
         packet = pickle.loads(data)
+        print(self.name + ' <| ' + packet.type +  ' <| ' +packet.sender["name"])
+
         # sender = writer.get_extra_info('peername')
         if packet:
             self.do(packet)
 
         # print("Send: %r" % message)
-        # writer.write(data)
+        # writer.write(pickle.dumps("fail"))
         # yield from writer.drain()
 
         # print("MSG: Close receiving socket")

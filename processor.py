@@ -9,6 +9,7 @@ import constants
 #cores or joining nodes.
 class Processor(Node):
     next_node = None
+    window_size = None
 
     def __init__(self, name=None, host=None, port=None, window_size=constants.WINDOW_SIZE):
         """
@@ -24,35 +25,56 @@ class Processor(Node):
             self.port = port
         if name:
             self.name = name
+        self.window_size = window_size
         self.LR = Region(constants.DATATYPE_S_STREAM, window_size)
         self.RR = Region(constants.DATATYPE_R_STREAM, window_size)
         self.loop = asyncio.get_event_loop()
 
     def set_window_size(self, n):
         """
-
-        :param n:
+        Changes all region's window size to n
+        :param n: integer number which denotes new window size
         """
         self.LR.change_window_size(n)
         self.RR.change_window_size(n)
+
+    def change_config(self, packet):
+        """
+
+        :param packet:
+        """
+        self.window_size = packet.data[0]
+        if self.window_size > self.LR.window_size:
+            self.set_window_size(self.window_size)
+        elif self.window_size < self.LR.window_size:
+            print("packet will be removed upon receival")
 
     def do(self, packet):
         """
 
         :param packet:
         """
-        # print(str(packet.sender) + ' >| ' + packet.type + str(packet.data[0]) + ' |> ' + str(self.port))
-
+        print(packet.sender["name"] + ' >| ' + packet.type + ' |> ' + self.name)
+        print("SIZE:" + str(self.window_size) + ' ' + str(self.LR.window_size) + ' ' + str(self.RR.window_size))
         join_result = None
         if packet.type == constants.DATATYPE_R_STREAM:
             if packet.store is True:
-                self.RR.store(packet)      # store r
+                if self.window_size < self.RR.window_size:
+                    self.RR.decrease_size()            # pop 1, decreasing windowsize
+                else:
+                    self.RR.store(packet)      # store r
             join_result = self.LR.process(packet)
 
         elif packet.type == constants.DATATYPE_S_STREAM:
             if packet.store is True:
-                self.LR.store(packet)      # store s
+                if self.window_size < self.LR.window_size:
+                    self.LR.decrease_size()
+                else:
+                    self.LR.store(packet)      # store s
             join_result = self.RR.process(packet)
+
+        elif packet.type == constants.DATATYPE_CONFIG:
+            self.change_config(packet)
 
         if len(join_result.data) > 0:
             self.send(join_result, self.next_node[0], self.next_node[1])
