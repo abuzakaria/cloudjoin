@@ -4,7 +4,6 @@ __author__ = 'Zakaria'
 class Packet(object):
     def __init__(self, packet_type):
         self.type = packet_type
-        self.store = False
         self.sender = ''
         self.data = []
 

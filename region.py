@@ -42,12 +42,13 @@ class Region():
             if host.data[0] == guest.data[0]:   # join matching by id, assumption id is in data[0]
                 join_result.data.append(host.data + guest.data)
                 is_empty = False
+
+            # join_result.data.append(host.data + guest.data)
+            # is_empty = False
+
         if is_empty is False:
             join_result.data.append(constants.PUNCTUATION)
         else:
             print("---------------------")
 
         return join_result
-
-    def change_window_size(self, n):
-        self.window_size = n

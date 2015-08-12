@@ -9,7 +9,9 @@ import constants
 #cores or joining nodes.
 class Processor(Node):
     next_node = None
-    window_size = None
+    n_th = 0
+    mod_by = 0
+    data_packet_counter = 0
 
     def __init__(self, name=None, host=None, port=None, window_size=constants.WINDOW_SIZE):
         """
@@ -25,29 +27,16 @@ class Processor(Node):
             self.port = port
         if name:
             self.name = name
-        self.window_size = window_size
         self.LR = Region(constants.DATATYPE_S_STREAM, window_size)
         self.RR = Region(constants.DATATYPE_R_STREAM, window_size)
         self.loop = asyncio.get_event_loop()
 
-    def set_window_size(self, n):
-        """
-        Changes all region's window size to n
-        :param n: integer number which denotes new window size
-        """
-        self.LR.change_window_size(n)
-        self.RR.change_window_size(n)
+    def set_storing_protocol(self, n, out_of):
+        self.n_th = n
+        self.mod_by = out_of
 
-    def change_config(self, packet):
-        """
-
-        :param packet:
-        """
-        self.window_size = packet.data[0]
-        if self.window_size > self.LR.window_size:
-            self.set_window_size(self.window_size)
-        elif self.window_size < self.LR.window_size:
-            print("packet will be removed upon receival")
+    def store_flag(self, packet_no):
+        return packet_no % self.mod_by == self.n_th
 
     def do(self, packet):
         """
@@ -55,53 +44,30 @@ class Processor(Node):
         :param packet:
         """
         print(packet.sender["name"] + ' >| ' + packet.type + ' |> ' + self.name)
-        print("SIZE:" + str(self.window_size) + ' ' + str(self.LR.window_size) + ' ' + str(self.RR.window_size))
+        print("SIZE:" + str(self.LR.window_size) + ' ' + str(self.RR.window_size))
         join_result = None
+
         if packet.type == constants.DATATYPE_R_STREAM:
-            if packet.store is True:
-                if self.window_size < self.RR.window_size:
-                    self.RR.decrease_size()            # pop 1, decreasing windowsize
-                else:
-                    self.RR.store(packet)      # store r
+            if self.mod_by == 0:
+                print("No store protocol defined")
+                return
+            self.data_packet_counter += 1
+            if self.store_flag(self.data_packet_counter):
+                self.RR.store(packet)      # store r
             join_result = self.LR.process(packet)
-
         elif packet.type == constants.DATATYPE_S_STREAM:
-            if packet.store is True:
-                if self.window_size < self.LR.window_size:
-                    self.LR.decrease_size()
-                else:
-                    self.LR.store(packet)      # store s
+            if self.mod_by == 0:
+                print("No store protocol defined")
+                return
+            self.data_packet_counter += 1
+            if self.store_flag(self.data_packet_counter):
+                self.LR.store(packet)      # store s
             join_result = self.RR.process(packet)
+        elif packet.type == constants.DATATYPE_DELETE:
+            self.LR.decrease_size()
+            self.RR.decrease_size()
+        elif packet.type == constants.DATATYPE_PROTOCOL:
+            self.set_storing_protocol(packet.data[0], packet.data[1])
 
-        elif packet.type == constants.DATATYPE_CONFIG:
-            self.change_config(packet)
-
-        if len(join_result.data) > 0:
+        if join_result and len(join_result.data) > 0:
             self.send(join_result, self.next_node[0], self.next_node[1])
-
-    # def send(self, payload, receiver_host, receiver_port):
-    #     payload.sender = self.name
-    #     loop = asyncio.get_event_loop()
-    #     asyncio.async(self.tcp_client(payload, receiver_host, receiver_port, loop))
-
-# if __name__ == '__main__':
-#     p = Processor('12346', '127.0.0.1', 12346)
-#     p.register_membership(('127.0.0.1', 12344))
-#     p.next_node = ('127.0.0.1', 12350)
-#     # p.add_neighbour(('127.0.0.1', 12350))
-#     p.run_server()
-
-
-#     hst = '127.0.0.1'
-#     for prt in range(12345, 12349):
-#         processor = Processor(hst, prt)
-#         processor.add_neighbour((hst, 12350))
-#         loop = asyncio.get_event_loop()
-#         t = Thread(target=processor.run_server, args=(loop,))
-#         t.start()
-
-#
-# from processor import Processor
-# p = Processor('127.0.0.1', )
-# p.add_neighbour(('127.0.0.1', 12350))
-# p.run_server()
