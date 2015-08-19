@@ -3,6 +3,11 @@ __author__ = 'Zakaria'
 import time
 import constants
 
+#active node row structure. column indexes below
+COL_NODE = 0
+COL_TIME = 1
+COL_USED = 2
+
 
 class MembershipManager:
     active_nodes = []
@@ -20,11 +25,11 @@ class MembershipManager:
         """
         for row in self.active_nodes:
             if row:
-                if reporting_node == row[0]:
-                    row[1] = time.time()
+                if reporting_node == row[COL_NODE]:
+                    row[COL_TIME] = time.time()
                     return
 
-        self.active_nodes.append([reporting_node, time.time()])
+        self.active_nodes.append([reporting_node, time.time(), False])
 
     def remove_node_from_list(self, inactive_node):
         """
@@ -32,7 +37,7 @@ class MembershipManager:
         :param inactive_node:
         """
         for row in self.active_nodes:
-            if inactive_node == row[0]:
+            if inactive_node == row[COL_NODE]:
                 self.active_nodes.remove(row)
 
     def check_active_nodes(self, interval):
@@ -42,8 +47,8 @@ class MembershipManager:
         """
         current_time = time.time()
         for row in self.active_nodes:
-            if row[1] + interval < current_time:
-                self.remove_node_from_list(row[0])
+            if row[COL_TIME] + interval < current_time:
+                self.remove_node_from_list(row[COL_NODE])
         self.loop.call_later(interval, self.check_active_nodes, interval)
 
     def handle_heartbeat(self, packet):
@@ -55,14 +60,12 @@ class MembershipManager:
     def get_nodes(self, n):
         nodelist = []
 
-        if n > len(self.active_nodes):
-            return None
-
         for row in self.active_nodes:
-            if n > 0:
-                nodelist.append(row[0])
+            if n > 0 and row[COL_USED] is False:
+                row[COL_USED] = True
+                nodelist.append(row[COL_NODE])
                 n -= 1
-            else:
-                break
+            elif n <= 0:
+                return nodelist
 
-        return nodelist
+        return None

@@ -13,7 +13,7 @@ class Processor(Node):
     mod_by = 0
     data_packet_counter = 0
 
-    def __init__(self, name=None, host=None, port=None, window_size=constants.WINDOW_SIZE):
+    def __init__(self, name=None, host=None, port=None, window_size=constants.SUBWINDOW_SIZE):
         """
 
         :param name:
@@ -32,6 +32,7 @@ class Processor(Node):
         self.loop = asyncio.get_event_loop()
 
     def set_storing_protocol(self, n, out_of):
+        print("STOREPROTOCOL: " + str(n) + ' ' + str(out_of))
         self.n_th = n
         self.mod_by = out_of
 
@@ -44,7 +45,7 @@ class Processor(Node):
         :param packet:
         """
         print(packet.sender["name"] + ' >| ' + packet.type + ' |> ' + self.name)
-        print("SIZE:" + str(self.LR.window_size) + ' ' + str(self.RR.window_size))
+        # print("SIZE:" + str(self.LR.window_size) + ' ' + str(self.RR.window_size))
         join_result = None
 
         if packet.type == constants.DATATYPE_R_STREAM:

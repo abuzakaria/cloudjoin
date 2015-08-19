@@ -39,26 +39,26 @@ while True:
         p.sender = {'host': "127.0.0.1", 'port': 0, 'name': "interface"}
         send_packet(p)
 
-    elif inp == constants.INPUT_GET_NODE:
+    elif inp == constants.INPUT_ADD_NODE:
         n = get_int("Number of nodes: ")
-        p = Packet(constants.SIGNAL_GET_NODE)
+        p = Packet(constants.SIGNAL_ADD_NODE)
         p.append_data(n)
         p.sender = {'host': "127.0.0.1", 'port': 0, 'name': "interface"}
         send_packet(p)
 
     elif inp == constants.INPUT_STORE_PROTOCOL:
         i = get_int("index of node: ")
-        n = get_int("every nth element: ")
-        out_of = get_int("out of: ")
+        n = get_int("number of elements to process in each cycle: ")
+
         p = Packet(constants.SIGNAL_STORE_PROTOCOL)
         p.append_data(i)
         p.append_data(n)
-        p.append_data(out_of)
+
         p.sender = {'host': "127.0.0.1", 'port': 0, 'name': "interface"}
         send_packet(p)
 
-    elif inp == constants.INPUT_STORE_PROTOCOL_BATCH:
-        p = Packet(constants.SIGNAL_STORE_PROTOCOL_BATCH)
+    elif inp == constants.INPUT_STORE_PROTOCOL_INIT:
+        p = Packet(constants.SIGNAL_STORE_PROTOCOL_INIT)
         p.sender = {'host': "127.0.0.1", 'port': 0, 'name': "interface"}
         send_packet(p)
 
