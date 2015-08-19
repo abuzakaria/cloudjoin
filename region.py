@@ -27,8 +27,13 @@ class Region():
         :param n: number of packet
         """
         while n > 0:
-            self.queue.popleft()
-            n -= 1
+            if self.queue:
+                self.queue.popleft()
+                n -= 1
+            else:
+                break
+        print(len(self.queue))
+        print(self.window_size)
 
     def process(self, guest):
         join_result = Packet(constants.DATATYPE_JOIN)

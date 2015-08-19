@@ -72,14 +72,37 @@ class Source(node.Node):
         p = Packet(constants.DATATYPE_DELETE)
         self.send(p, processor_node)
 
-    def change_subwindow_size_of_node(self, n, size):
+    # def change_subwindow_size_of_node(self, n, size):
+    #     """
+    #
+    #     :param n: node to be changed
+    #     :param size: new window size
+    #     """
+    #     p = Packet(constants.DATATYPE_SUBWINDOW_SIZE)
+    #     p.append_data(size)
+    #     self.send(p, n[0], n[1])
+
+    def increase_subwindow_size_of_node(self, n, val):
         """
 
         :param n: node to be changed
-        :param size: new window size
+        :param val: increase by val
         """
-        p = Packet(constants.DATATYPE_SUBWINDOW_SIZE)
-        p.append_data(size)
+        p = Packet(constants.DATATYPE_SUBWINDOW_SIZE_INC)
+        p.append_data(val)
+        self.send(p, n[0], n[1])
+
+    def decrease_subwindow_size_of_node(self, n, val, mode):
+        """
+
+
+        :param mode: which mode to decrease
+        :param n: node to be changed
+        :param val: increase by val
+        """
+        p = Packet(constants.DATATYPE_SUBWINDOW_SIZE_DEC)
+        p.append_data(val)
+        p.append_data(mode)
         self.send(p, n[0], n[1])
 
 
@@ -119,6 +142,16 @@ class Source(node.Node):
                 self.nodes.extend(temp_node_list)
                 self.nodes_protocol.extend(1 for n in temp_node_list)
 
+        elif packet.type == constants.SIGNAL_INCREASE_SUBWINDOW:
+            temp_node = self.nodes[int(packet.data[0])]
+            inc_by = int(packet.data[1])
+            self.increase_subwindow_size_of_node(temp_node, inc_by)
+
+        elif packet.type == constants.SIGNAL_DECREASE_SUBWINDOW:
+            temp_node = self.nodes[int(packet.data[0])]
+            dec_by = int(packet.data[1])
+            mode = packet.data[2]
+            self.decrease_subwindow_size_of_node(temp_node, dec_by, mode)
 
     def load_packet_buffer(self):
         """
