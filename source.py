@@ -11,7 +11,6 @@ from membership_manager import MembershipManager
 class Source(node.Node):
     nodes = []
     packet_buffer = deque()
-    temp_flag_sending = False
 
     def __init__(self, name=None, host=None, port=None):
         """
@@ -83,18 +82,26 @@ class Source(node.Node):
         """
         if packet.type == constants.DATATYPE_HEARTBEAT:
             self.membership_manager.handle_heartbeat(packet)
-            self.nodes = self.membership_manager.get_nodes(constants.MINIMUM_NODES)
-            if self.nodes and self.temp_flag_sending is False and len(self.nodes) >= constants.MINIMUM_NODES:
-                self.temp_flag_sending = True
-                self.send_store_protocol_packet_batch()
-                asyncio.async(self.start_streaming())
+
+        elif packet.type == constants.SIGNAL_STORE_PROTOCOL:
+            self.send_store_protocol_packet(self.nodes[int(packet.data[0])],
+                                            int(packet.data[1]),
+                                            int(packet.data[2]))
+
+        elif packet.type == constants.SIGNAL_STORE_PROTOCOL_BATCH:
+            self.send_store_protocol_packet_batch()
+
+        elif packet.type == constants.SIGNAL_START_STREAM:
+            asyncio.async(self.start_streaming())
+
+        elif packet.type == constants.SIGNAL_GET_NODE:
+            self.nodes = self.membership_manager.get_nodes(int(packet.data[0]))
 
     @asyncio.coroutine
     def start_streaming(self):
         """
         start sending packets from buffer
         """
-        print("trace")
         while len(self.packet_buffer) > 0:
             self.distribute(self.packet_buffer.popleft())
             yield from asyncio.sleep(0.5)
@@ -116,9 +123,6 @@ class Source(node.Node):
                 self.packet_buffer.append(pack)
 ###########################################################
 
-
-#
-# #Test run
 if __name__ == '__main__':
-    src = Source('source', '127.0.0.1', '12344')
+    src = Source('source', constants.SOURCE_HOST, constants.SOURCE_PORT)
     src.run_server()
