@@ -1,7 +1,7 @@
 __author__ = 'Zakaria'
 
 import time
-import constants
+from core import constants
 
 #active node row structure. column indexes below
 COL_NODE = 0
