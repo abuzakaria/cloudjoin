@@ -15,6 +15,10 @@ class MembershipManager:
     loop = None
 
     def __init__(self, loop):
+        """
+
+        :param loop:
+        """
         self.loop = loop
 
     def add_node_to_list(self, reporting_node):
@@ -52,12 +56,21 @@ class MembershipManager:
         self.loop.call_later(interval, self.check_active_nodes, interval)
 
     def handle_heartbeat(self, packet):
+        """
+
+        :param packet:
+        """
         self.add_node_to_list((packet.sender['host'], packet.sender['port']))
         if self.is_membership_protocol_running is False:
             self.is_membership_protocol_running = True
             self.check_active_nodes(constants.CHECK_INTERVAL)
 
     def get_nodes(self, n):
+        """
+
+        :param n:
+        :return:
+        """
         nodelist = []
 
         for row in self.active_nodes:

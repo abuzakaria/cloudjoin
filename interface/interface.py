@@ -8,6 +8,11 @@ import pickle
 
 @asyncio.coroutine
 def tcp_echo_client(packet, loop):
+    """
+
+    :param packet:
+    :param loop:
+    """
     reader, writer = yield from asyncio.open_connection(constants.SOURCE_HOST,
                                                         constants.SOURCE_PORT,
                                                         loop=loop)
@@ -16,11 +21,20 @@ def tcp_echo_client(packet, loop):
 
 
 def send_packet(packet):
+    """
+
+    :param packet:
+    """
     packet.sender = {'host': "127.0.0.1", 'port': 0, 'name': "interface"}
     loop.run_until_complete(tcp_echo_client(packet, loop))
 
 
 def get_int(text):
+    """
+
+    :param text:
+    :return:
+    """
     x = input(text)
     while x.isdigit() is False and int(x) > 1:
         print("Not a valid number")

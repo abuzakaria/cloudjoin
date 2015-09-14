@@ -7,11 +7,21 @@ from core import constants
 
 class Region():
     def __init__(self, store_type, subwindow_size=constants.SUBWINDOW_SIZE):
+        """
+
+        :param store_type:
+        :param subwindow_size:
+        """
         self.subwindow_size = subwindow_size
         self.store_type = store_type
         self.queue = deque()      #readonly maxlen is available if needed.
 
     def store(self, packet):
+        """
+
+        :param packet:
+        :return:
+        """
         if packet.type != self.store_type:
             return False
         if len(self.queue) >= self.subwindow_size:
@@ -36,6 +46,11 @@ class Region():
         print(self.subwindow_size)
 
     def process(self, guest):
+        """
+
+        :param guest:
+        :return:
+        """
         join_result = Packet(constants.DATATYPE_JOIN)
         is_empty = True
         if guest.type == self.store_type:

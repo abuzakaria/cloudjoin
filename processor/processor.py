@@ -32,20 +32,39 @@ class Processor(Node):
         self.loop = asyncio.get_event_loop()
 
     def set_storing_protocol(self, n, out_of):
+        """
+
+        :param n:
+        :param out_of:
+        """
         print("STOREPROTOCOL: " + str(n) + ' ' + str(out_of))
         self.n_th = n
         self.mod_by = out_of
 
     def store_flag(self, packet_no):
+        """
+
+        :param packet_no:
+        :return:
+        """
         return packet_no % self.mod_by == self.n_th
 
     def increase_subwindow_size(self, n):
+        """
+
+        :param n:
+        """
         self.LR.subwindow_size += n
         self.RR.subwindow_size += n
         print(self.LR.subwindow_size)
         print(self.RR.subwindow_size)
 
     def decrease_subwindow_size(self, n, mode):
+        """
+
+        :param n:
+        :param mode:
+        """
         if mode == constants.MODE_SUBW_DEC_LOSSY:
             self.LR.subwindow_size -= n
             self.RR.subwindow_size -= n

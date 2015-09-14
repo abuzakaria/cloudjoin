@@ -68,6 +68,10 @@ class Source(node.Node):
         self.send(p, processor_node[0], processor_node[1])
 
     def send_store_protocol_packet_batch(self):
+        """
+
+
+        """
         number_of_nodes = len(self.nodes)
         out_of = 0
         for x in range(number_of_nodes):
