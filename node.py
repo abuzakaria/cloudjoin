@@ -1,10 +1,10 @@
 __author__ = 'Zakaria'
 
 
-from core.packet import Packet
+from packet import Packet
 import asyncio
 import pickle
-from core import constants
+import constants
 
 
 #superclass for all types of nodes

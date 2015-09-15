@@ -1,12 +1,13 @@
 __author__ = 'Zakaria'
 
 import time
-from core import constants
+import constants
 
 #active node row structure. column indexes below
 COL_NODE = 0
 COL_TIME = 1
 COL_USED = 2
+COL_COST = 3
 
 
 class MembershipManager:
@@ -21,7 +22,7 @@ class MembershipManager:
         """
         self.loop = loop
 
-    def add_node_to_list(self, reporting_node):
+    def add_node_to_list(self, reporting_node, cost_value):
         """
         adds node to list if it is a new node. else time is updated of
         matching node
@@ -33,7 +34,10 @@ class MembershipManager:
                     row[COL_TIME] = time.time()
                     return
 
-        self.active_nodes.append([reporting_node, time.time(), False])
+        self.active_nodes.append([reporting_node, time.time(), False, cost_value])
+        self.active_nodes.sort(key=lambda x: x[COL_COST], reverse=True)     # sorting active nodes by descending cost
+        print(self.active_nodes)
+
 
     def remove_node_from_list(self, inactive_node):
         """
@@ -60,7 +64,7 @@ class MembershipManager:
 
         :param packet:
         """
-        self.add_node_to_list((packet.sender['host'], packet.sender['port']))
+        self.add_node_to_list((packet.sender['host'], packet.sender['port']), packet.data[0])
         if self.is_membership_protocol_running is False:
             self.is_membership_protocol_running = True
             self.check_active_nodes(constants.CHECK_INTERVAL)

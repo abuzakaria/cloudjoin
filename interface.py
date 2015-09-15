@@ -1,8 +1,8 @@
 __author__ = 'Zakaria'
 
 import asyncio
-from core.packet import Packet
-from core import constants
+from packet import Packet
+import constants
 import pickle
 
 

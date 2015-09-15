@@ -1,8 +1,8 @@
 __author__ = 'Zakaria'
 
 from collections import deque
-from core.packet import Packet
-from core import constants
+from packet import Packet
+import constants
 
 
 class Region():

@@ -1,10 +1,12 @@
+from membership_manager import MembershipManager
+
 __author__ = 'Zakaria'
-from core import node
+import node
 import asyncio
-from core import constants
-from core.packet import Packet
+import constants
+from packet import Packet
 from collections import deque
-from source.membership_manager import MembershipManager
+
 
 
 #source or first node of the network

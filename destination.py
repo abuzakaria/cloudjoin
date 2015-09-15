@@ -1,6 +1,6 @@
 __author__ = 'Zakaria'
 
-from core import node
+import node
 import json
 
 

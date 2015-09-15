@@ -1,19 +1,28 @@
 __author__ = 'Zakaria'
 
-from core.node import Node
-from processor.region import Region
+from node import Node
+from region import Region
 import asyncio
-from core import constants
+import constants
+from packet import Packet
 
 
-#cores or joining nodes.
+# cores or joining nodes.
 class Processor(Node):
     next_node = None
     n_th = 0
     mod_by = 0
     data_packet_counter = 0
 
-    def __init__(self, name=None, host=None, port=None, subwindow_size=constants.SUBWINDOW_SIZE):
+    def __init__(self, name=None, host=None, port=None,
+                 subwindow_size=constants.SUBWINDOW_SIZE,
+                 reliability=constants.COST_FUNCTION_DEFAULT_PARAM,
+                 availability=constants.COST_FUNCTION_DEFAULT_PARAM,
+                 throughput=constants.COST_FUNCTION_DEFAULT_PARAM,
+                 power_consumption=constants.COST_FUNCTION_DEFAULT_PARAM,
+                 processing_latency=constants.COST_FUNCTION_DEFAULT_PARAM,
+                 transmission_latency=constants.COST_FUNCTION_DEFAULT_PARAM,
+    ):
         """
 
         :param name:
@@ -29,7 +38,19 @@ class Processor(Node):
             self.name = name
         self.LR = Region(constants.DATATYPE_S_STREAM, subwindow_size)
         self.RR = Region(constants.DATATYPE_R_STREAM, subwindow_size)
+        self.cost_value = (reliability * availability * throughput) / \
+                          (power_consumption * processing_latency * transmission_latency)
         self.loop = asyncio.get_event_loop()
+
+    def send_heartbeat(self, interval):
+        """
+        Sends a heartbeat to manager after a defined interval
+        :param interval: gap between heartbeats
+        """
+        p = Packet(constants.DATATYPE_HEARTBEAT)
+        p.append_data(self.cost_value)
+        self.send(p, self.membership_manager[0], self.membership_manager[1])
+        self.loop.call_later(interval, self.send_heartbeat, interval)
 
     def set_storing_protocol(self, n, out_of):
         """
@@ -86,7 +107,7 @@ class Processor(Node):
                 return
             self.data_packet_counter += 1
             if self.store_flag(self.data_packet_counter):
-                self.RR.store(packet)      # store r
+                self.RR.store(packet)  # store r
             join_result = self.LR.process(packet)
 
         elif packet.type == constants.DATATYPE_S_STREAM:
@@ -95,7 +116,7 @@ class Processor(Node):
                 return
             self.data_packet_counter += 1
             if self.store_flag(self.data_packet_counter):
-                self.LR.store(packet)      # store s
+                self.LR.store(packet)  # store s
             join_result = self.RR.process(packet)
 
         # elif packet.type == constants.DATATYPE_DELETE:
