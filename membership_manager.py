@@ -7,7 +7,8 @@ import constants
 COL_NODE = 0
 COL_TIME = 1
 COL_USED = 2
-COL_COST = 3
+COL_SUBW = 3
+COL_COST = 4
 
 
 class MembershipManager:
@@ -22,7 +23,7 @@ class MembershipManager:
         """
         self.loop = loop
 
-    def add_node_to_list(self, reporting_node, cost_value):
+    def add_node_to_list(self, reporting_node, subwindow_size, cost_value):
         """
         adds node to list if it is a new node. else time is updated of
         matching node
@@ -34,19 +35,9 @@ class MembershipManager:
                     row[COL_TIME] = time.time()
                     return
 
-        self.active_nodes.append([reporting_node, time.time(), False, cost_value])
+        self.active_nodes.append([reporting_node, time.time(), False, subwindow_size, cost_value])
         self.active_nodes.sort(key=lambda x: x[COL_COST], reverse=True)     # sorting active nodes by descending cost
         print(self.active_nodes)
-
-
-    def remove_node_from_list(self, inactive_node):
-        """
-        node removed from active node list
-        :param inactive_node:
-        """
-        for row in self.active_nodes:
-            if inactive_node == row[COL_NODE]:
-                self.active_nodes.remove(row)
 
     def check_active_nodes(self, interval):
         """
@@ -55,8 +46,9 @@ class MembershipManager:
         """
         current_time = time.time()
         for row in self.active_nodes:
-            if row[COL_TIME] + interval < current_time:
-                self.remove_node_from_list(row[COL_NODE])
+            if row[COL_TIME] + interval < current_time:     # inactive node remove
+                self.active_nodes.remove(row)
+                print(self.active_nodes)
         self.loop.call_later(interval, self.check_active_nodes, interval)
 
     def handle_heartbeat(self, packet):
@@ -64,7 +56,7 @@ class MembershipManager:
 
         :param packet:
         """
-        self.add_node_to_list((packet.sender['host'], packet.sender['port']), packet.data[0])
+        self.add_node_to_list((packet.sender['host'], packet.sender['port']), packet.data[0], packet.data[1])
         if self.is_membership_protocol_running is False:
             self.is_membership_protocol_running = True
             self.check_active_nodes(constants.CHECK_INTERVAL)
@@ -80,7 +72,7 @@ class MembershipManager:
         for row in self.active_nodes:
             if n > 0 and row[COL_USED] is False:
                 row[COL_USED] = True
-                nodelist.append(row[COL_NODE])
+                nodelist.append([row[COL_NODE], row[COL_SUBW]])
                 n -= 1
             elif n <= 0:
                 return nodelist

@@ -6,14 +6,22 @@ import asyncio
 import constants
 from packet import Packet
 from collections import deque
+from copy import deepcopy
 
+# column index of nodes list
+COL_NODE = 0
+COL_SUBW = 1
 
 
 #source or first node of the network
 class Source(node.Node):
-    nodes = []
-    nodes_protocol = []
     packet_buffer = deque()
+
+    nodes = []
+    nodes_copy = []
+    index1 = -1
+    index2 = -1
+    flag_copy_load_complete = False
 
     def __init__(self, name=None, host=None, port=None):
         """
@@ -34,14 +42,74 @@ class Source(node.Node):
 
     def add_node(self, n):
         """
-
+        Adds node from membership manager to source's own list
         :param n: number of nodes
         """
         temp_node_list = self.membership_manager.get_nodes(n)
         if temp_node_list:
             self.nodes.extend(temp_node_list)
-            self.nodes_protocol.extend(1 for temp in temp_node_list)
         print(self.nodes)
+
+    def send_delete_packet(self, processor_node):
+        """
+        send packet to delete element and decrease size of processor node
+        :param processor_node:
+        """
+        p = Packet(constants.DATATYPE_DELETE)
+        self.send(p, processor_node[0], processor_node[1])
+
+    def change_subwindow_size_of_node(self, n, size):
+        """
+        change subwindow size of a node
+        :param n: node to be changed
+        :param size: new window size
+        """
+        p = Packet(constants.DATATYPE_SUBWINDOW_SIZE)
+        p.append_data(size)
+        self.send(p, n[0], n[1])
+
+    def get_saver(self):
+        """
+        Find the next saver of a packet according to subwindows of nodes
+
+        :return: node: host and port tuple
+        """
+        if len(self.nodes_copy) == 0:       # assign flag if copy is loaded
+            self.flag_copy_load_complete = False
+
+        if self.flag_copy_load_complete is False:   # if copy not loaded, load copy
+            self.index1 += 1
+            self.index1 %= len(self.nodes)
+            self.nodes_copy.append(deepcopy(self.nodes[self.index1]))   # deep copy
+            if len(self.nodes) == len(self.nodes_copy):
+                self.flag_copy_load_complete = True
+
+        self.index2 += 1
+        self.index2 %= len(self.nodes_copy)
+        if self.nodes_copy[self.index2][COL_SUBW] > 1:  # if subw more than 1, reduce and return node
+            self.nodes_copy[self.index2][COL_SUBW] -= 1
+        elif self.nodes_copy[self.index2][COL_SUBW] == 1:   # if subw is 1, remove element, adjust index, return node
+            el = self.nodes_copy[self.index2]
+            del self.nodes_copy[self.index2]
+            self.index2 -= 1
+            return el
+
+        return self.nodes_copy[self.index2][COL_NODE]
+
+    @asyncio.coroutine
+    def start_streaming(self):
+        """
+        start sending packets from buffer
+        """
+        # pack = None
+        while len(self.packet_buffer) > 0:
+            pack = self.packet_buffer.popleft()
+            pack.saver = self.get_saver()
+            self.distribute(pack)
+            yield from asyncio.sleep(0.5)
+        # self.temp_flag_sending = False
+        # self.run_server()
+        # src.send(pack, '127.0.0.1', 12350)
 
     def distribute(self, packet):
         """
@@ -54,124 +122,19 @@ class Source(node.Node):
             (host, port) = row
             self.send(packet, host, port)
 
-    def send_store_protocol_packet(self, processor_node, n, out_of):
-        """
-
-        :param processor_node:
-        :param n:
-        :param out_of:
-        """
-        print(processor_node)
-        print(n)
-        print(out_of)
-        p = Packet(constants.DATATYPE_PROTOCOL)
-        p.append_data(n)
-        p.append_data(out_of)
-        self.send(p, processor_node[0], processor_node[1])
-
-    def send_store_protocol_packet_batch(self):
-        """
-
-
-        """
-        number_of_nodes = len(self.nodes)
-        out_of = 0
-        for x in range(number_of_nodes):
-            out_of += self.nodes_protocol[x]
-        for x in range(number_of_nodes):
-            self.send_store_protocol_packet(self.nodes[x], self.nodes_protocol[x], out_of)
-
-    def send_delete_packet(self, processor_node):
-        """
-
-        :param processor_node:
-        """
-        p = Packet(constants.DATATYPE_DELETE)
-        self.send(p, processor_node)
-
-    # def change_subwindow_size_of_node(self, n, size):
-    #     """
-    #
-    #     :param n: node to be changed
-    #     :param size: new window size
-    #     """
-    #     p = Packet(constants.DATATYPE_SUBWINDOW_SIZE)
-    #     p.append_data(size)
-    #     self.send(p, n[0], n[1])
-
-    def increase_subwindow_size_of_node(self, n, val):
-        """
-
-        :param n: node to be changed
-        :param val: increase by val
-        """
-        p = Packet(constants.DATATYPE_SUBWINDOW_SIZE_INC)
-        p.append_data(val)
-        self.send(p, n[0], n[1])
-
-    def decrease_subwindow_size_of_node(self, n, val, mode):
-        """
-
-
-        :param mode: which mode to decrease
-        :param n: node to be changed
-        :param val: increase by val
-        """
-        if mode == constants.MODE_SUBW_DEC_LOSSY:
-            p = Packet(constants.DATATYPE_SUBWINDOW_SIZE_DEC)
-            p.append_data(val)
-            p.append_data(mode)
-            self.send(p, n[0], n[1])
-        elif mode == constants.MODE_SUBW_DEC_LL_NEWNODE:
-            self.add_node(1)
-
-
-
-
-
-    @asyncio.coroutine
-    def start_streaming(self):
-        """
-        start sending packets from buffer
-        """
-        while len(self.packet_buffer) > 0:
-            self.distribute(self.packet_buffer.popleft())
-            yield from asyncio.sleep(0.5)
-        # self.temp_flag_sending = False
-        # self.run_server()
-        # src.send(pack, '127.0.0.1', 12350)
-
     def do(self, packet):
         """
-
+        packet handling method
         :param packet:
         """
         if packet.type == constants.DATATYPE_HEARTBEAT:
             self.membership_manager.handle_heartbeat(packet)
-
-        elif packet.type == constants.SIGNAL_STORE_PROTOCOL:
-            self.nodes_protocol[int(packet.data[0])] = int(packet.data[1])
-            self.send_store_protocol_packet_batch()
-
-        elif packet.type == constants.SIGNAL_STORE_PROTOCOL_INIT:
-            self.send_store_protocol_packet_batch()
 
         elif packet.type == constants.SIGNAL_START_STREAM:
             asyncio.async(self.start_streaming())
 
         elif packet.type == constants.SIGNAL_ADD_NODE:
             self.add_node(int(packet.data[0]))
-
-        elif packet.type == constants.SIGNAL_INCREASE_SUBWINDOW:
-            temp_node = self.nodes[int(packet.data[0])]
-            inc_by = int(packet.data[1])
-            self.increase_subwindow_size_of_node(temp_node, inc_by)
-
-        elif packet.type == constants.SIGNAL_DECREASE_SUBWINDOW:
-            temp_node = self.nodes[int(packet.data[0])]
-            dec_by = int(packet.data[1])
-            mode = packet.data[2]
-            self.decrease_subwindow_size_of_node(temp_node, dec_by, mode)
 
     def load_packet_buffer(self):
         """

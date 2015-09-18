@@ -9,7 +9,7 @@ import constants
 
 #superclass for all types of nodes
 class Node:
-    name = None
+    name = None     # used only for printing purpose, no logic
     host = None
     port = None
     membership_manager = None

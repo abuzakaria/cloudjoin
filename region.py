@@ -24,24 +24,26 @@ class Region():
         """
         if packet.type != self.store_type:
             return False
-        if len(self.queue) >= self.subwindow_size:
+
+        if len(self.queue) < self.subwindow_size:   # if space free in queue, append
+            self.queue.append(packet)
+        elif len(self.queue) == self.subwindow_size:  # if queue full, pop then add
             self.queue.popleft()
             self.queue.append(packet)
         else:
-            self.queue.append(packet)
+            # if queue size greater than subwindow size, just pop. error case.
+            # should not be here. rather delete packet and decrease size
+            self.decrease_size()
+            return False
+
         return True
 
-    def decrease_size(self, n=1):
+    def decrease_size(self):
         """
         remove number of packets
-        :param n: number of packet
         """
-        while n > 0:
-            if self.queue:
-                self.queue.popleft()
-                n -= 1
-            else:
-                break
+        if self.queue:
+            self.queue.popleft()
         print(len(self.queue))
         print(self.subwindow_size)
 

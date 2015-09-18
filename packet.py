@@ -9,6 +9,7 @@ class Packet(object):
         """
         self.type = packet_type
         self.sender = ''
+        self.saver = ''
         self.data = []
 
     def set_type(self, packet_type):
