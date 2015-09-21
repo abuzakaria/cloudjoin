@@ -19,8 +19,8 @@ class Source(node.Node):
 
     nodes = []
     nodes_copy = []
-    index1 = -1
-    index2 = -1
+    index_main = -1
+    index_copy = -1
     flag_copy_load_complete = False
 
     def __init__(self, name=None, host=None, port=None):
@@ -48,7 +48,7 @@ class Source(node.Node):
         temp_node_list = self.membership_manager.get_nodes(n)
         if temp_node_list:
             self.nodes.extend(temp_node_list)
-        print(self.nodes)
+        print("Node acquired:\n\t" + ("\n\t".join(map(str, self.nodes))))
 
     def send_delete_packet(self, processor_node):
         """
@@ -78,23 +78,25 @@ class Source(node.Node):
             self.flag_copy_load_complete = False
 
         if self.flag_copy_load_complete is False:   # if copy not loaded, load copy
-            self.index1 += 1
-            self.index1 %= len(self.nodes)
-            self.nodes_copy.append(deepcopy(self.nodes[self.index1]))   # deep copy
+            self.index_main += 1
+            self.index_main %= len(self.nodes)
+            self.nodes_copy.append(deepcopy(self.nodes[self.index_main]))   # deep copy
             if len(self.nodes) == len(self.nodes_copy):
                 self.flag_copy_load_complete = True
 
-        self.index2 += 1
-        self.index2 %= len(self.nodes_copy)
-        if self.nodes_copy[self.index2][COL_SUBW] > 1:  # if subw more than 1, reduce and return node
-            self.nodes_copy[self.index2][COL_SUBW] -= 1
-        elif self.nodes_copy[self.index2][COL_SUBW] == 1:   # if subw is 1, remove element, adjust index, return node
-            el = self.nodes_copy[self.index2]
-            del self.nodes_copy[self.index2]
-            self.index2 -= 1
-            return el
+        self.index_copy += 1
+        self.index_copy %= len(self.nodes_copy)
+            # if subw more than 1, reduce and return node
+        if self.nodes_copy[self.index_copy][COL_SUBW] > 1:
+            self.nodes_copy[self.index_copy][COL_SUBW] -= 1
+            # if subw is 1, remove element, adjust index, return node
+        elif self.nodes_copy[self.index_copy][COL_SUBW] == 1:
+            el = self.nodes_copy[self.index_copy]
+            del self.nodes_copy[self.index_copy]
+            self.index_copy -= 1
+            return el[COL_NODE]
 
-        return self.nodes_copy[self.index2][COL_NODE]
+        return self.nodes_copy[self.index_copy][COL_NODE]
 
     @asyncio.coroutine
     def start_streaming(self):
@@ -119,7 +121,7 @@ class Source(node.Node):
 
         # print(self.nodes)
         for row in self.nodes:
-            (host, port) = row
+            (host, port) = row[COL_NODE]
             self.send(packet, host, port)
 
     def do(self, packet):

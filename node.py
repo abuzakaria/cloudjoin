@@ -78,7 +78,7 @@ class Node:
 
             writer.close()
         except:
-            print("ERROR: Sending Failed")
+            print("ERROR: Sending failed to " + str(receiver_host) + ":" + str(receiver_port))
 
     def run_server(self):
         """

@@ -44,8 +44,7 @@ class Region():
         """
         if self.queue:
             self.queue.popleft()
-        print(len(self.queue))
-        print(self.subwindow_size)
+        print("After decrease size: " + str(len(self.queue)) + " " +str(self.subwindow_size))
 
     def process(self, guest):
         """

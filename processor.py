@@ -63,7 +63,8 @@ class Processor(Node):
 
         :param packet:
         """
-        print(packet.sender["name"] + ' >| ' + packet.type + ' |> ' + self.name)
+        print(packet.sender["name"] + ' >| ' + packet.type + " | "
+              + ", ".join(map(str, packet.saver)) + ' |> ' + self.name)
         # print("SIZE:" + str(self.LR.subwindow_size) + ' ' + str(self.RR.subwindow_size))
         join_result = None
 

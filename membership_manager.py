@@ -37,7 +37,7 @@ class MembershipManager:
 
         self.active_nodes.append([reporting_node, time.time(), False, subwindow_size, cost_value])
         self.active_nodes.sort(key=lambda x: x[COL_COST], reverse=True)     # sorting active nodes by descending cost
-        print(self.active_nodes)
+        print("After adding new node, active nodes:\n\t" + ("\n\t".join(map(str, self.active_nodes))))
 
     def check_active_nodes(self, interval):
         """
@@ -48,7 +48,7 @@ class MembershipManager:
         for row in self.active_nodes:
             if row[COL_TIME] + interval < current_time:     # inactive node remove
                 self.active_nodes.remove(row)
-                print(self.active_nodes)
+                print("After removing inactive node, Active nodes:\n\t" + ("\n\t".join(map(str, self.active_nodes))))
         self.loop.call_later(interval, self.check_active_nodes, interval)
 
     def handle_heartbeat(self, packet):
