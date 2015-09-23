@@ -22,6 +22,7 @@ class Region():
         :param packet:
         :return:
         """
+        print("Subw: " + str(self.subwindow_size))
         if packet.type != self.store_type:
             return False
 
@@ -44,7 +45,16 @@ class Region():
         """
         if self.queue:
             self.queue.popleft()
-        print("After decrease size: " + str(len(self.queue)) + " " +str(self.subwindow_size))
+            self.subwindow_size -= 1
+        print("After decrease size: " + str(len(self.queue)) + " " + str(self.subwindow_size))
+
+    def increase_size(self, change):
+        """
+        remove number of packets
+        """
+        if change > 0:
+            self.subwindow_size -= change
+        print("After increase size, (q,size): " + str(len(self.queue)) + " " + str(self.subwindow_size))
 
     def process(self, guest):
         """

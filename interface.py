@@ -59,6 +59,12 @@ while True:
         p.append_data(n)
         send_packet(p)
 
+    elif inp.startswith(constants.INPUT_MODE):
+        args = [x.strip() for x in inp.split(';')[1:]]  # arg list without the mode keyword
+        p = Packet(constants.SIGNAL_MODE)
+        p.append_data(args)
+        send_packet(p)
+
     # elif inp == constants.INPUT_STORE_PROTOCOL:
     #     i = get_int("index of node: ")
     #     n = get_int("number of elements to process in each cycle: ")

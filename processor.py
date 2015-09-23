@@ -5,6 +5,7 @@ from region import Region
 import asyncio
 import constants
 from packet import Packet
+import sys
 
 
 # cores or joining nodes.
@@ -38,6 +39,7 @@ class Processor(Node):
         self.cost_value = (reliability * availability * throughput) / \
                           (power_consumption * processing_latency * transmission_latency)
         self.loop = asyncio.get_event_loop()
+        sys.stdout = open('_log_' + self.name + '.txt', 'w')
 
     def send_heartbeat(self, interval):
         """
@@ -50,13 +52,13 @@ class Processor(Node):
         self.send(p, self.membership_manager[0], self.membership_manager[1])
         self.loop.call_later(interval, self.send_heartbeat, interval)
 
-    def set_subwindow_size(self, n):
-        """
-        Set subwindow size of the regions
-        :param n: new size
-        """
-        self.LR.subwindow_size = n
-        self.RR.subwindow_size = n
+    # def set_subwindow_size(self, n):
+    #     """
+    #     Set subwindow size of the regions
+    #     :param n: new size
+    #     """
+    #     self.LR.subwindow_size = n
+    #     self.RR.subwindow_size = n
 
     def do(self, packet):
         """
@@ -79,9 +81,14 @@ class Processor(Node):
             join_result = self.RR.process(packet)
 
         elif packet.type == constants.DATATYPE_DELETE:  # delete packet
-            if packet.saver == (self.host, self.port):
-                self.LR.decrease_size()
-                self.RR.decrease_size()
+            self.LR.decrease_size()
+            self.RR.decrease_size()
+
+        elif packet.type == constants.DATATYPE_SUBWINDOW_SIZE:
+            change = packet.data[0]
+            self.LR.increase_size(change)
+            self.RR.increase_size(change)
+
 
         # separate if: send result if exists
         if join_result and len(join_result.data) > 0:
