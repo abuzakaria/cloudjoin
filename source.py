@@ -96,7 +96,7 @@ class Source(node.Node):
 
             #reducing window size in copy beforehand
             if self.nodes_copy[self.index_main][COL_CHANGE] < 0:
-                self.nodes_copy[self.index_main][COL_SUBW] -= self.nodes_copy[self.index_main][COL_CHANGE]
+                self.nodes_copy[self.index_main][COL_SUBW] += self.nodes_copy[self.index_main][COL_CHANGE]
 
             # update flag true if copy done
             if len(self.nodes) == len(self.nodes_copy):
