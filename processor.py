@@ -13,7 +13,6 @@ class Processor(Node):
     next_node = None
 
     def __init__(self, name=None, host=None, port=None,
-                 subwindow_size=constants.SUBWINDOW_SIZE,
                  reliability=constants.COST_FUNCTION_DEFAULT_PARAM,
                  availability=constants.COST_FUNCTION_DEFAULT_PARAM,
                  throughput=constants.COST_FUNCTION_DEFAULT_PARAM,
@@ -34,8 +33,8 @@ class Processor(Node):
             self.port = port
         if name:
             self.name = name    # used only for printing purpose, no logic
-        self.LR = Region(constants.DATATYPE_S_STREAM, subwindow_size)
-        self.RR = Region(constants.DATATYPE_R_STREAM, subwindow_size)
+        self.LR = Region(constants.DATATYPE_S_STREAM)
+        self.RR = Region(constants.DATATYPE_R_STREAM)
         self.cost_value = (reliability * availability * throughput) / \
                           (power_consumption * processing_latency * transmission_latency)
         self.loop = asyncio.get_event_loop()
@@ -52,21 +51,12 @@ class Processor(Node):
         self.send(p, self.membership_manager[0], self.membership_manager[1])
         self.loop.call_later(interval, self.send_heartbeat, interval)
 
-    # def set_subwindow_size(self, n):
-    #     """
-    #     Set subwindow size of the regions
-    #     :param n: new size
-    #     """
-    #     self.LR.subwindow_size = n
-    #     self.RR.subwindow_size = n
-
     def do(self, packet):
         """
 
         :param packet:
         """
-        print(packet.sender["name"] + ' >| ' + packet.type + " | "
-              + ", ".join(map(str, packet.saver)) + ' |> ' + self.name)
+        print(packet.sender["name"] + ' >| ' + packet.type + ' |> ' + self.name)
         # print("SIZE:" + str(self.LR.subwindow_size) + ' ' + str(self.RR.subwindow_size))
         join_result = None
 
@@ -84,10 +74,15 @@ class Processor(Node):
             self.LR.decrease_size()
             self.RR.decrease_size()
 
-        elif packet.type == constants.DATATYPE_SUBWINDOW_SIZE:
+        elif packet.type == constants.DATATYPE_CHANGE_SUBWINDOW_SIZE:
             change = packet.data[0]
             self.LR.increase_size(change)
             self.RR.increase_size(change)
+
+        elif packet.type == constants.DATATYPE_SET_SUBWINDOW_SIZE:
+            size = packet.data[0]
+            self.LR.set_size(size)
+            self.RR.set_size(size)
 
 
         # separate if: send result if exists

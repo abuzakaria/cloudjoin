@@ -68,8 +68,18 @@ class Source(node.Node):
         :param change: change to be applied
         :param n: node to be changed
         """
-        p = Packet(constants.DATATYPE_SUBWINDOW_SIZE)
+        p = Packet(constants.DATATYPE_CHANGE_SUBWINDOW_SIZE)
         p.append_data(change)
+        self.send(p, n[0], n[1])
+
+    def set_subwindow_size_of_node(self, n, size):
+        """
+        set subwindow size of a node, only if current size is 0
+        :param change: change to be applied
+        :param n: node to be changed
+        """
+        p = Packet(constants.DATATYPE_SET_SUBWINDOW_SIZE)
+        p.append_data(size)
         self.send(p, n[0], n[1])
 
     def get_next_saver(self):
@@ -175,11 +185,6 @@ class Source(node.Node):
                 row[COL_CHANGE] = change
                 print(row)
                 return
-                # # resize subw when reducing. otherwise handle later, because increasing
-                # # subwindow needs to drop old packet first. so increasing subw will
-                # # continue as old size, then increase the subw
-                # if change < 0:
-                #     row[COL_SUBW] -= change
 
     def process_modes(self, args):
         """
@@ -189,13 +194,16 @@ class Source(node.Node):
         mode = args[0]
 
         if mode == "A" or "J":
-            print("mode " + mode)
+            # [A, 127.0.0.1, 12345, 3]
+            # [J, 127.0.0.1, 12345, -3]
+
             if len(args) != 4:
                 return
             host = args[1]
             port = int(args[2])
             sw_change = int(args[3])
             self.set_sw_change(host, port, sw_change)
+
         elif mode == "B":
             print("mode B")
         elif mode == "C" or "L":
@@ -217,6 +225,7 @@ class Source(node.Node):
         elif mode == "K":
             print("mode K")
         elif mode == "L":
+            # [L, 1, 7]
             print("mode L")
 
     def do(self, packet):
@@ -232,6 +241,13 @@ class Source(node.Node):
 
         elif packet.type == constants.SIGNAL_ADD_NODE:
             self.add_node(int(packet.data[0]))
+
+        elif packet.type == constants.SIGNAL_SET_SUBWINDOW_SIZE:
+            size = int(packet.data[0])
+            for row in self.nodes:
+                n = row[COL_NODE]
+                row[COL_SUBW] = size
+                self.set_subwindow_size_of_node(n, size)
 
         elif packet.type == constants.SIGNAL_MODE:
             args = packet.data[0]

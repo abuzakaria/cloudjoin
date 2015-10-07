@@ -6,13 +6,13 @@ import constants
 
 
 class Region():
-    def __init__(self, store_type, subwindow_size=constants.SUBWINDOW_SIZE):
+    def __init__(self, store_type):
         """
 
         :param store_type:
         :param subwindow_size:
         """
-        self.subwindow_size = subwindow_size
+        self.subwindow_size = 0
         self.store_type = store_type
         self.queue = deque()      #readonly maxlen is available if needed.
 
@@ -41,7 +41,7 @@ class Region():
 
     def decrease_size(self):
         """
-        remove number of packets
+        remove number of packets and decrease size by 1
         """
         if self.queue:
             self.queue.popleft()
@@ -50,11 +50,20 @@ class Region():
 
     def increase_size(self, change):
         """
-        remove number of packets
+        increase subwindow size
+        :param change: int
         """
         if change > 0:
             self.subwindow_size -= change
         print("After increase size, (q,size): " + str(len(self.queue)) + " " + str(self.subwindow_size))
+
+    def set_size(self, size):
+        """
+        set subwindow size if 0
+        :param size:
+        """
+        if self.subwindow_size == 0:
+            self.subwindow_size = size
 
     def process(self, guest):
         """

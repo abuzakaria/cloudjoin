@@ -59,7 +59,16 @@ while True:
         p.append_data(n)
         send_packet(p)
 
+    elif inp == constants.INPUT_SET_SUBWINDOW_SIZE:
+        n = get_int("Size: ")
+        p = Packet(constants.SIGNAL_SET_SUBWINDOW_SIZE)
+        p.append_data(n)
+        send_packet(p)
+
     elif inp.startswith(constants.INPUT_MODE):
+        # mode;A;127.0.0.1;12345;3
+        # mode;J;127.0.0.1;12345;-3
+        # mode;L;1;7
         args = [x.strip() for x in inp.split(';')[1:]]  # arg list without the mode keyword
         p = Packet(constants.SIGNAL_MODE)
         p.append_data(args)
