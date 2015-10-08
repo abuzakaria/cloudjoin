@@ -4,7 +4,7 @@ __author__ = 'Zakaria'
 from packet import Packet
 import asyncio
 import pickle
-import constants
+import parameters
 
 
 #superclass for all types of nodes
@@ -37,14 +37,14 @@ class Node:
         """
         print("registering to membership membership_manager")
         self.membership_manager = manager
-        self.send_heartbeat(constants.HEARTBEAT_INTERVAL)
+        self.send_heartbeat(parameters.HEARTBEAT_INTERVAL)
 
     def send_heartbeat(self, interval):
         """
         Sends a heartbeat to manager after a defined interval
         :param interval: gap between heartbeats
         """
-        p = Packet(constants.DATATYPE_HEARTBEAT)
+        p = Packet(parameters.DATATYPE_HEARTBEAT)
         self.send(p, self.membership_manager[0], self.membership_manager[1])
         self.loop.call_later(interval, self.send_heartbeat, interval)
 
@@ -108,7 +108,7 @@ class Node:
         """
         data = yield from reader.read()
         packet = pickle.loads(data)
-        print(self.name + ' <| ' + packet.type +  ' <| ' +packet.sender["name"])
+        print(self.name + ' <| ' + packet.type + ' <| ' + packet.sender["name"])
 
         # sender = writer.get_extra_info('peername')
         if packet:

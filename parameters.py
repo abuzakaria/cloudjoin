@@ -1,7 +1,13 @@
 __author__ = 'Zakaria'
 
+MODE_TIME = "time"
+MODE_COUNT = "count"
+parameter_mode = MODE_TIME
+
+parameter_sw_time = 5000    # millisecond
+
 COST_FUNCTION_DEFAULT_PARAM = 10
-HEARTBEAT_INTERVAL = 10
+HEARTBEAT_INTERVAL = 10  # second
 CHECK_INTERVAL = 15
 MINIMUM_NODES = 1
 PUNCTUATION = '*'

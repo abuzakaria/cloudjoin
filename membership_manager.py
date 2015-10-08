@@ -1,7 +1,7 @@
 __author__ = 'Zakaria'
 
-import time
-import constants
+import utils
+import parameters
 
 #active node row structure. column indexes below
 COL_NODE = 0
@@ -32,10 +32,10 @@ class MembershipManager:
         for row in self.active_nodes:
             if row:
                 if reporting_node == row[COL_NODE]:
-                    row[COL_TIME] = time.time()
+                    row[COL_TIME] = utils.get_second()
                     return
 
-        self.active_nodes.append([reporting_node, time.time(), False, subwindow_size, cost_value])
+        self.active_nodes.append([reporting_node, utils.get_second(), False, subwindow_size, cost_value])
         self.active_nodes.sort(key=lambda x: x[COL_COST], reverse=True)     # sorting active nodes by descending cost
         print("After adding, available nodes:\n\t" + ("\n\t".join(map(str, self.active_nodes))))
 
@@ -44,7 +44,7 @@ class MembershipManager:
         Checks inactive node after interval
         :param interval:
         """
-        current_time = time.time()
+        current_time = utils.get_second()
         for row in self.active_nodes:
             if row[COL_TIME] + interval < current_time:     # inactive node remove
                 self.active_nodes.remove(row)
@@ -59,7 +59,7 @@ class MembershipManager:
         self.add_node_to_list((packet.sender['host'], packet.sender['port']), packet.data[0], packet.data[1])
         if self.is_membership_protocol_running is False:
             self.is_membership_protocol_running = True
-            self.check_active_nodes(constants.CHECK_INTERVAL)
+            self.check_active_nodes(parameters.CHECK_INTERVAL)
 
     def get_nodes(self, n):
         """
@@ -74,7 +74,8 @@ class MembershipManager:
                 row[COL_USED] = True
                 nodelist.append([row[COL_NODE], row[COL_SUBW]])
                 n -= 1
-            elif n <= 0:
-                return nodelist
+
+        if n <= 0:
+            return nodelist
 
         return None

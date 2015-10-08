@@ -2,7 +2,7 @@ __author__ = 'Zakaria'
 
 import asyncio
 from packet import Packet
-import constants
+import parameters
 import pickle
 
 
@@ -13,8 +13,8 @@ def tcp_echo_client(packet, loop):
     :param packet:
     :param loop:
     """
-    reader, writer = yield from asyncio.open_connection(constants.SOURCE_HOST,
-                                                        constants.SOURCE_PORT,
+    reader, writer = yield from asyncio.open_connection(parameters.SOURCE_HOST,
+                                                        parameters.SOURCE_PORT,
                                                         loop=loop)
     writer.write(pickle.dumps(packet))
     writer.close()
@@ -45,32 +45,32 @@ loop = asyncio.get_event_loop()
 while True:
     p = None
     inp = input("***************************\nCommand: ")
-    if inp == constants.INPUT_EXIT:
+    if inp == parameters.INPUT_EXIT:
         loop.close()
         break
 
-    elif inp == constants.INPUT_START_STREAM:
-        p = Packet(constants.SIGNAL_START_STREAM)
+    elif inp == parameters.INPUT_START_STREAM:
+        p = Packet(parameters.SIGNAL_START_STREAM)
         send_packet(p)
 
-    elif inp == constants.INPUT_ADD_NODE:
+    elif inp == parameters.INPUT_ADD_NODE:
         n = get_int("Number of nodes: ")
-        p = Packet(constants.SIGNAL_ADD_NODE)
+        p = Packet(parameters.SIGNAL_ADD_NODE)
         p.append_data(n)
         send_packet(p)
 
-    elif inp == constants.INPUT_SET_SUBWINDOW_SIZE:
+    elif inp == parameters.INPUT_SET_SUBWINDOW_SIZE:
         n = get_int("Size: ")
-        p = Packet(constants.SIGNAL_SET_SUBWINDOW_SIZE)
+        p = Packet(parameters.SIGNAL_SET_SUBWINDOW_SIZE)
         p.append_data(n)
         send_packet(p)
 
-    elif inp.startswith(constants.INPUT_MODE):
+    elif inp.startswith(parameters.INPUT_MODE):
         # mode;A;127.0.0.1;12345;3
         # mode;J;127.0.0.1;12345;-3
         # mode;L;1;7
         args = [x.strip() for x in inp.split(';')[1:]]  # arg list without the mode keyword
-        p = Packet(constants.SIGNAL_MODE)
+        p = Packet(parameters.SIGNAL_MODE)
         p.append_data(args)
         send_packet(p)
 
