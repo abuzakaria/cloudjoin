@@ -26,6 +26,8 @@ class Source(node.Node):
     index_copy = -1
     flag_copy_load_complete = False
 
+    pending_nodes = []
+
     def __init__(self, name=None, host=None, port=None):
         """
         Initializes node with name host and port
@@ -43,24 +45,43 @@ class Source(node.Node):
         self.load_packet_buffer()
         self.membership_manager = MembershipManager(self.loop)
 
-    def add_node(self, n):
+    def add_node(self, n, mode=parameters.MODE_ADD_NODE_DEFAULT):
         """
         Adds node from membership manager to source's own list
+        :param mode: pending node, or active node list
         :param n: number of nodes
+        :return temp_node_list: added nodes or blank array
         """
         temp_node_list = self.membership_manager.get_nodes(n)
         if temp_node_list:
             for row in temp_node_list:
                 row.append(0)       # initialize change to 0 for all new node
-            self.nodes.extend(temp_node_list)
-        print("After acquiring nodes:\n\t" + ("\n\t".join(map(str, self.nodes))))
+
+            if mode == parameters.MODE_ADD_NODE_DEFAULT:    # add node to node list
+                self.nodes.extend(temp_node_list)
+                print("After acquiring nodes:\n\t" + ("\n\t".join(map(str, self.nodes))))
+            elif mode == parameters.MODE_ADD_NODE_PENDING:  # add node to pending node list
+                self.pending_nodes.extend(temp_node_list)
+                print("After acquiring pending nodes:\n\t" + ("\n\t".join(map(str, self.pending_nodes))))
+        return temp_node_list
+
+    def add_pending_nodes(self):
+        """
+        Adds pending nodes to main nodes list and empties pending nodes
+
+        """
+        if len(self.pending_nodes) > 0:
+            self.nodes.extend(self.pending_nodes)
+            self.pending_nodes.clear()
 
     def send_delete_packet(self, processor_node):
         """
         send packet to delete element and decrease size of processor node
         :param processor_node:
         """
+
         p = Packet(parameters.DATATYPE_DELETE)
+        print(p.type + ' ' + str(processor_node))
         self.send(p, processor_node[0], processor_node[1])
 
     def change_subwindow_size_of_node(self, n, change):
@@ -71,6 +92,7 @@ class Source(node.Node):
         """
         p = Packet(parameters.DATATYPE_CHANGE_SUBWINDOW_SIZE)
         p.append_data(change)
+        print(p.type + ' ' + str(n) + str(change))
         self.send(p, n[0], n[1])
 
     def set_subwindow_size_of_node(self, n, size):
@@ -81,6 +103,7 @@ class Source(node.Node):
         """
         p = Packet(parameters.DATATYPE_SET_SUBWINDOW_SIZE)
         p.append_data(size)
+        print(p.type + ' ' + str(n) + str(size))
         self.send(p, n[0], n[1])
 
     def get_next_saver(self):
@@ -91,6 +114,7 @@ class Source(node.Node):
         """
         if parameters.parameter_mode == parameters.MODE_TIME:
             # if time based, just rotate turn
+            self.add_pending_nodes()    # doesnt matter when add new node.
             self.index_main += 1
             self.index_main %= len(self.nodes)
             return self.nodes[self.index_main][COL_NODE]
@@ -99,6 +123,7 @@ class Source(node.Node):
             # else if count based, complicated process
             if len(self.nodes_copy) == 0:  # assign flag if copy is loaded
                 self.flag_copy_load_complete = False
+                self.add_pending_nodes()    # only add pending node after end of a cycle
 
             if self.flag_copy_load_complete is False:  # if copy not loaded, load copy
                 self.index_main += 1
@@ -174,22 +199,25 @@ class Source(node.Node):
         :param packet: packet to distribute
         """
 
-        # print(self.nodes)
+        print(packet.type + packet.data[0] + str(packet.saver))
         for row in self.nodes:
             (host, port) = row[COL_NODE]
             self.send(packet, host, port)
 
     def set_sw_change(self, host, port, change):
         """
-
+        Set positive change to change column, -ve means change = -subwindow_size
         :param host:
         :param port:
         :param change:
         """
         for row in self.nodes:
             if (host, port) == row[COL_NODE]:
-                row[COL_CHANGE] = change
-                print(row)
+                if change > 0:
+                    row[COL_CHANGE] = change
+                elif change < 0:
+                    row[COL_CHANGE] = -1 * row[COL_SUBW]
+                # print(row)
                 return
 
     def process_modes(self, args):
@@ -199,21 +227,16 @@ class Source(node.Node):
         """
         mode = args[0]
 
-        if mode == "A" or "J":
-            # [A, 127.0.0.1, 12345, 3]
-            # [J, 127.0.0.1, 12345, -3]
-
-            if len(args) != 4:
-                return
-            host = args[1]
-            port = int(args[2])
-            sw_change = int(args[3])
-            self.set_sw_change(host, port, sw_change)
+        if mode == "A" or mode == "J":
+            # ['A', '127.0.0.1', '12345', '3']
+            # ['J', '127.0.0.1', '12345', '-3']
+            self.process_mode_change_subwindow(args)
 
         elif mode == "B":
             print("mode B")
-        elif mode == "C" or "L":
-            print("mode C")
+        elif mode == "C":
+            # ['C', '127.0.0.1', '12345']
+            self.process_mode_remove_node(args)
         elif mode == "D":
             print("mode D")
         elif mode == "E":
@@ -226,13 +249,52 @@ class Source(node.Node):
             print("mode H")
         elif mode == "I":
             print("mode I")
-        # elif mode == "J":
-        #     print("mode J")
         elif mode == "K":
             print("mode K")
         elif mode == "L":
-            # [L, 1, 7]
-            print("mode L")
+            # ['L', '1', '7']
+            self.process_mode_add_node(args)
+
+    def process_mode_change_subwindow(self, args):
+        """
+
+        :param args:['A', '127.0.0.1', '12345', '3']
+                    ['J', '127.0.0.1', '12345', '-3']
+        :return:
+        """
+        if len(args) != 4:
+            return
+        host = args[1]
+        port = int(args[2])
+        sw_change = int(args[3])
+        self.set_sw_change(host, port, sw_change)
+
+    def process_mode_add_node(self, args):
+        """
+
+        :param args: ['L', '1', '7']
+        """
+        if len(args) != 3:
+            return
+        count = int(args[1])
+        sw_size = int(args[2])
+        new_nodes = self.add_node(count, mode=parameters.MODE_ADD_NODE_PENDING)
+        for nd in new_nodes:    # send to processor size info
+            self.set_subwindow_size_of_node(nd, sw_size)
+        for nd in self.pending_nodes:   # update size in pending, which will later be added to source array
+            if nd in new_nodes:
+                nd[COL_SUBW] = sw_size
+
+    def process_mode_remove_node(self, args):
+        """
+
+        :param args: ['C', '127.0.0.1', '12345']
+        """
+        if len(args) != 3:
+            return
+        host = args[1]
+        port = int(args[2])
+        self.set_sw_change(host, port, -1)
 
     def do(self, packet):
         """
@@ -246,7 +308,7 @@ class Source(node.Node):
             asyncio.async(self.start_streaming())
 
         elif packet.type == parameters.SIGNAL_ADD_NODE:
-            self.add_node(int(packet.data[0]))
+            self.add_node(int(packet.data[0]), mode=parameters.MODE_ADD_NODE_DEFAULT)
 
         elif packet.type == parameters.SIGNAL_SET_SUBWINDOW_SIZE and \
                 parameters.parameter_mode == parameters.MODE_COUNT:

@@ -67,7 +67,7 @@ class Node:
         :param receiver_host: host of receiver
         :param receiver_port: port of receiver
         """
-        print(self.name + ' >| ' + message.type + ' |> ' + str(receiver_port))
+        # print(self.name + ' >| ' + message.type + ' |> ' + str(receiver_port))
         try:
             reader, writer = yield from asyncio.open_connection(receiver_host, receiver_port, loop=self.loop)
             writer.write(pickle.dumps(message))
@@ -108,7 +108,7 @@ class Node:
         """
         data = yield from reader.read()
         packet = pickle.loads(data)
-        print(self.name + ' <| ' + packet.type + ' <| ' + packet.sender["name"])
+        # print(self.name + ' <| ' + packet.type + ' <| ' + packet.sender["name"])
 
         # sender = writer.get_extra_info('peername')
         if packet:

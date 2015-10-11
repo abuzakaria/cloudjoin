@@ -56,34 +56,38 @@ class Processor(Node):
 
         :param packet:
         """
-        print(packet.sender["name"] + ' >| ' + packet.type + ' |> ' + self.name)
+        # print(packet.sender["name"] + ' >| ' + packet.type + ' |> ' + self.name)
         # print("SIZE:" + str(self.LR.subwindow_size) + ' ' + str(self.RR.subwindow_size))
         join_result = None
 
         if packet.type == parameters.DATATYPE_R_STREAM:  # r packet
+            print(packet.type + packet.data[0] + str(packet.saver))
             if packet.saver == (self.host, self.port):
                 self.RR.store(packet)  # store r
             join_result = self.LR.process(packet)
 
         elif packet.type == parameters.DATATYPE_S_STREAM:    # s packet
+            print(packet.type + packet.data[0] + str(packet.saver))
             if packet.saver == (self.host, self.port):
                 self.LR.store(packet)  # store s
             join_result = self.RR.process(packet)
 
         elif packet.type == parameters.DATATYPE_DELETE:  # delete packet
+            print(packet.type)
             self.LR.decrease_size()
             self.RR.decrease_size()
 
         elif packet.type == parameters.DATATYPE_CHANGE_SUBWINDOW_SIZE:
             change = packet.data[0]
+            print(packet.type + ' ' + change)
             self.LR.increase_size(change)
             self.RR.increase_size(change)
 
         elif packet.type == parameters.DATATYPE_SET_SUBWINDOW_SIZE:
             size = packet.data[0]
+            print(packet.type + ' ' + size)
             self.LR.set_size(size)
             self.RR.set_size(size)
-
 
         # separate if: send result if exists
         if join_result and len(join_result.data) > 0:

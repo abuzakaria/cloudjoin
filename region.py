@@ -15,7 +15,7 @@ class Region():
         """
         self.subwindow_size = 0
         self.store_type = store_type
-        self.queue = list()      #readonly maxlen is available if needed.
+        self.queue = list()
 
     def store(self, packet):
         """
@@ -23,7 +23,7 @@ class Region():
         :param packet:
         :return:
         """
-        print("Subw: " + str(self.subwindow_size))
+        # print("Subw: " + str(self.subwindow_size))
         if packet.type != self.store_type:
             return False
 
@@ -52,7 +52,7 @@ class Region():
             if self.queue:
                 self.queue.pop(0)
                 self.subwindow_size -= 1
-            print("After decrease size: " + str(len(self.queue)) + " " + str(self.subwindow_size))
+            # print("After decrease size: " + str(len(self.queue)) + " " + str(self.subwindow_size))
 
     def increase_size(self, change):
         """
@@ -62,7 +62,7 @@ class Region():
         if parameters.parameter_mode == parameters.MODE_COUNT:
             if change > 0:
                 self.subwindow_size -= change
-            print("After increase size, (q,size): " + str(len(self.queue)) + " " + str(self.subwindow_size))
+            # print("After increase size, (q,size): " + str(len(self.queue)) + " " + str(self.subwindow_size))
 
     def set_size(self, size):
         """
@@ -90,7 +90,7 @@ class Region():
             # check if packet old
             if utils.get_millisecond() > host.store_time + parameters.parameter_sw_time:
                 self.queue.remove(host)
-                print("removed: " + str(host.type) + str(host.data[0]))
+                # print("removed: " + str(host.type) + str(host.data[0]))
                 continue
 
             print(host.type + str(host.data[0]) + ' X ' + guest.type + str(guest.data[0]))

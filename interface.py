@@ -69,6 +69,7 @@ while True:
         # mode;A;127.0.0.1;12345;3
         # mode;J;127.0.0.1;12345;-3
         # mode;L;1;7
+        # mode;C;127.0.0.1;12345
         args = [x.strip() for x in inp.split(';')[1:]]  # arg list without the mode keyword
         p = Packet(parameters.SIGNAL_MODE)
         p.append_data(args)
