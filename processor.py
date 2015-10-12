@@ -22,10 +22,16 @@ class Processor(Node):
     ):
         """
 
+
+        :param reliability:
+        :param availability:
+        :param throughput:
+        :param power_consumption:
+        :param processing_latency:
+        :param transmission_latency:
         :param name:
         :param host:
         :param port:
-        :param subwindow_size:
         """
         if host:
             self.host = host
@@ -46,7 +52,6 @@ class Processor(Node):
         :param interval: gap between heartbeats
         """
         p = Packet(parameters.DATATYPE_HEARTBEAT)
-        p.append_data(self.LR.subwindow_size)
         p.append_data(self.cost_value)
         self.send(p, self.membership_manager[0], self.membership_manager[1])
         self.loop.call_later(interval, self.send_heartbeat, interval)
@@ -85,7 +90,7 @@ class Processor(Node):
 
         elif packet.type == parameters.DATATYPE_SET_SUBWINDOW_SIZE:
             size = packet.data[0]
-            print(packet.type + ' ' + size)
+            print(packet.type + ' ' + str(size))
             self.LR.set_size(size)
             self.RR.set_size(size)
 

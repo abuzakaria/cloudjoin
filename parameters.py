@@ -4,7 +4,8 @@ MODE_TIME = "time"
 MODE_COUNT = "count"
 parameter_mode = MODE_TIME
 
-parameter_sw_time = 5000    # millisecond
+SUBWINDOW_DEFAULT_TIME = 5000    # millisecond
+SUBWINDOW_DEFAULT_SIZE = 0
 
 COST_FUNCTION_DEFAULT_PARAM = 10
 HEARTBEAT_INTERVAL = 10  # second

@@ -88,10 +88,11 @@ class Region():
         while i < len(self.queue):
             host = self.queue[i]
             # check if packet old
-            if utils.get_millisecond() > host.store_time + parameters.parameter_sw_time:
-                self.queue.remove(host)
-                # print("removed: " + str(host.type) + str(host.data[0]))
-                continue
+            if parameters.parameter_mode == parameters.MODE_TIME:
+                if utils.get_millisecond() > host.store_time + parameters.SUBWINDOW_DEFAULT_TIME:
+                    self.queue.remove(host)
+                    # print("removed: " + str(host.type) + str(host.data[0]))
+                    continue
 
             print(host.type + str(host.data[0]) + ' X ' + guest.type + str(guest.data[0]))
 

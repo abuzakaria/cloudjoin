@@ -54,9 +54,6 @@ class Source(node.Node):
         """
         temp_node_list = self.membership_manager.get_nodes(n)
         if temp_node_list:
-            for row in temp_node_list:
-                row.append(0)       # initialize change to 0 for all new node
-
             if mode == parameters.MODE_ADD_NODE_DEFAULT:    # add node to node list
                 self.nodes.extend(temp_node_list)
                 print("After acquiring nodes:\n\t" + ("\n\t".join(map(str, self.nodes))))
