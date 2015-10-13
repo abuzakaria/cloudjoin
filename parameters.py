@@ -2,7 +2,7 @@ __author__ = 'Zakaria'
 
 MODE_TIME = "time"
 MODE_COUNT = "count"
-parameter_mode = MODE_TIME
+parameter_mode = MODE_COUNT
 
 SUBWINDOW_DEFAULT_TIME = 5000    # millisecond
 SUBWINDOW_DEFAULT_SIZE = 0

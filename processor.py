@@ -1,7 +1,8 @@
+import utils
+
 __author__ = 'Zakaria'
 
 from node import Node
-from region import Region
 import asyncio
 import parameters
 from packet import Packet
@@ -33,16 +34,15 @@ class Processor(Node):
         :param host:
         :param port:
         """
-        if host:
-            self.host = host
-        if port:
-            self.port = port
-        if name:
-            self.name = name    # used only for printing purpose, no logic
-        self.LR = Region(parameters.DATATYPE_S_STREAM)
-        self.RR = Region(parameters.DATATYPE_R_STREAM)
-        self.cost_value = (reliability * availability * throughput) / \
-                          (power_consumption * processing_latency * transmission_latency)
+        self.host = host
+        self.port = port
+        self.name = name  # used only for printing purpose, no logic
+        self.S_Storage = []
+        self.R_Storage = []
+        self.subwindow_size = parameters.SUBWINDOW_DEFAULT_SIZE
+        if reliability and availability and throughput and power_consumption and processing_latency and transmission_latency:
+            self.cost_value = (reliability * availability * throughput) / \
+                              (power_consumption * processing_latency * transmission_latency)
         self.loop = asyncio.get_event_loop()
         sys.stdout = open('_log_' + self.name + '.txt', 'w')
 
@@ -56,43 +56,146 @@ class Processor(Node):
         self.send(p, self.membership_manager[0], self.membership_manager[1])
         self.loop.call_later(interval, self.send_heartbeat, interval)
 
+    def store(self, packet):
+        """
+
+        :param packet:
+        """
+        # determine in which queue to store packet
+        if packet.type == parameters.DATATYPE_R_STREAM:
+            storage = self.R_Storage
+        elif packet.type == parameters.DATATYPE_S_STREAM:
+            storage = self.S_Storage
+        else:
+            return False
+
+        # need this for time based and for discarding oldest among count based queues
+        packet.store_time = utils.get_millisecond()
+
+        # if count based join, check both queues' length, if less then store,
+        # if equal then drop the oldest of the two queue and store,
+        # else something wrong
+        if parameters.parameter_mode == parameters.MODE_COUNT:
+            len_r = len(self.R_Storage)
+            len_s = len(self.S_Storage)
+            if len_r + len_s == self.subwindow_size:
+                self.drop_oldest_packet()
+            elif len_r + len_s > self.subwindow_size:
+                return False    # error case
+            storage.append(packet)  # storing here
+
+        # if time based join, just store. deletion will take place during joining
+        elif parameters.parameter_mode == parameters.MODE_TIME:
+            packet.store_time = utils.get_millisecond()
+            storage.append(packet)
+
+    def process_joining(self, guest):
+        """
+
+
+        :param guest_packet: packet type
+        """
+        join_result = Packet(parameters.DATATYPE_JOIN)
+        is_empty = True
+        if guest.type == parameters.DATATYPE_R_STREAM:
+            storage = self.R_Storage
+        elif guest.type == parameters.DATATYPE_S_STREAM:
+            storage = self.S_Storage
+        else:
+            return False
+
+        i = 0
+        while i < len(storage):
+            print(str(len(storage)) + ' , ' + str(i))
+            host = storage[i]
+            # deletion in time based. count based deletion is during store.
+            if parameters.parameter_mode == parameters.MODE_TIME:
+                if utils.get_millisecond() > host.store_time + parameters.SUBWINDOW_DEFAULT_TIME:
+                    storage.remove(host)
+                    # print("removed: " + str(host.type) + str(host.data[0]))
+                    continue
+
+            print(host.type + str(host.data[0]) + ' X ' + guest.type + str(guest.data[0]))
+
+            if host.data[0] == guest.data[0]:   # join matching by id, assumption id is in data[0]
+                join_result.data.append(host.data + guest.data)
+                is_empty = False
+
+            i += 1
+
+        if is_empty is False:
+            join_result.data.append(parameters.PUNCTUATION)
+        else:
+            print("---------------------")
+
+        return join_result
+
+    def drop_oldest_packet(self):
+        """
+
+        Drops the oldest packet from R-storage or S-storage whoever has the oldest
+        """
+        len_r = len(self.R_Storage)
+        len_s = len(self.S_Storage)
+        if len_s == 0 and len_r == 0:
+            return
+        elif len_r == self.subwindow_size:    # if no S, but R is full
+            self.R_Storage.pop(0)
+        elif len_s == self.subwindow_size:  # if no R, but S is full
+            self.S_Storage.pop(0)
+        # first element of S is older than first element of R
+        elif self.R_Storage[0].store_time > self.S_Storage[0].store_time:
+            self.S_Storage.pop(0)
+        # first element of R is older than first element of S
+        elif self.S_Storage[0].store_time >= self.R_Storage[0].store_time:
+            self.R_Storage.pop(0)
+
+    def decrease_size(self):
+        """
+        remove number of packets and decrease size by 1
+        """
+        if parameters.parameter_mode == parameters.MODE_COUNT:
+            self.drop_oldest_packet()
+            self.subwindow_size -= 1
+
+    def increase_size(self, change):
+        """
+        Increase subwindow size by change
+        :param change: int
+        """
+        if parameters.parameter_mode == parameters.MODE_COUNT:
+            if change > 0:
+                self.subwindow_size += change
+
     def do(self, packet):
         """
 
         :param packet:
         """
         # print(packet.sender["name"] + ' >| ' + packet.type + ' |> ' + self.name)
-        # print("SIZE:" + str(self.LR.subwindow_size) + ' ' + str(self.RR.subwindow_size))
+        # print("SIZE:" + str(self.S_Storage.subwindow_size) + ' ' + str(self.R_Storage.subwindow_size))
         join_result = None
 
-        if packet.type == parameters.DATATYPE_R_STREAM:  # r packet
+        if packet.type == parameters.DATATYPE_R_STREAM or packet.type == parameters.DATATYPE_S_STREAM:  # r packet
             print(packet.type + packet.data[0] + str(packet.saver))
             if packet.saver == (self.host, self.port):
-                self.RR.store(packet)  # store r
-            join_result = self.LR.process(packet)
-
-        elif packet.type == parameters.DATATYPE_S_STREAM:    # s packet
-            print(packet.type + packet.data[0] + str(packet.saver))
-            if packet.saver == (self.host, self.port):
-                self.LR.store(packet)  # store s
-            join_result = self.RR.process(packet)
+                self.store(packet)  # store r
+            join_result = self.process_joining(packet)
 
         elif packet.type == parameters.DATATYPE_DELETE:  # delete packet
             print(packet.type)
-            self.LR.decrease_size()
-            self.RR.decrease_size()
+            self.decrease_size()
 
         elif packet.type == parameters.DATATYPE_CHANGE_SUBWINDOW_SIZE:
-            change = packet.data[0]
+            change = int(packet.data[0])
             print(packet.type + ' ' + change)
-            self.LR.increase_size(change)
-            self.RR.increase_size(change)
+            self.increase_size(change)
+            self.increase_size(change)
 
         elif packet.type == parameters.DATATYPE_SET_SUBWINDOW_SIZE:
             size = packet.data[0]
             print(packet.type + ' ' + str(size))
-            self.LR.set_size(size)
-            self.RR.set_size(size)
+            self.subwindow_size = size
 
         # separate if: send result if exists
         if join_result and len(join_result.data) > 0:

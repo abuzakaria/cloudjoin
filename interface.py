@@ -75,35 +75,5 @@ while True:
         p.append_data(args)
         send_packet(p)
 
-    # elif inp == constants.INPUT_STORE_PROTOCOL:
-    #     i = get_int("index of node: ")
-    #     n = get_int("number of elements to process in each cycle: ")
-    #     p = Packet(constants.SIGNAL_STORE_PROTOCOL)
-    #     p.append_data(i)
-    #     p.append_data(n)
-    #     send_packet(p)
-    #
-    # elif inp == constants.INPUT_STORE_PROTOCOL_INIT:
-    #     p = Packet(constants.SIGNAL_STORE_PROTOCOL_INIT)
-    #     send_packet(p)
-    #
-    # elif inp == constants.INPUT_INCREASE_SUBWINDOW:
-    #     i = get_int("index of node: ")
-    #     n = get_int("increase sub-window by: ")
-    #     p = Packet(constants.SIGNAL_INCREASE_SUBWINDOW)
-    #     p.append_data(i)
-    #     p.append_data(n)
-    #     send_packet(p)
-    #
-    # elif inp == constants.INPUT_DECREASE_SUBWINDOW:
-    #     i = get_int("index of node: ")
-    #     n = get_int("decrease sub-window by: ")
-    #     mode = input("decrease mode: ")
-    #     p = Packet(constants.SIGNAL_DECREASE_SUBWINDOW)
-    #     p.append_data(i)
-    #     p.append_data(n)
-    #     p.append_data(mode)
-    #     send_packet(p)
-
     else:
         print("Undefined command. Try again. Type 'exit' to exit.")

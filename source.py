@@ -81,7 +81,7 @@ class Source(node.Node):
         print(p.type + ' ' + str(processor_node))
         self.send(p, processor_node[0], processor_node[1])
 
-    def change_subwindow_size_of_node(self, n, change):
+    def send_change_subwindow_size(self, n, change):
         """
         change subwindow size of a node
         :param change: change to be applied
@@ -92,7 +92,7 @@ class Source(node.Node):
         print(p.type + ' ' + str(n) + str(change))
         self.send(p, n[0], n[1])
 
-    def set_subwindow_size_of_node(self, n, size):
+    def send_set_subwindow_size_of_node(self, n, size):
         """
         set subwindow size of a node, only if current size is 0
         :param change: change to be applied
@@ -111,13 +111,16 @@ class Source(node.Node):
         """
         if parameters.parameter_mode == parameters.MODE_TIME:
             # if time based, just rotate turn
+
             self.add_pending_nodes()    # doesnt matter when add new node.
+
             self.index_main += 1
             self.index_main %= len(self.nodes)
             return self.nodes[self.index_main][COL_NODE]
 
         elif parameters.parameter_mode == parameters.MODE_COUNT:
             # else if count based, complicated process
+
             if len(self.nodes_copy) == 0:  # assign flag if copy is loaded
                 self.flag_copy_load_complete = False
                 self.add_pending_nodes()    # only add pending node after end of a cycle
@@ -132,7 +135,7 @@ class Source(node.Node):
                 self.nodes[self.index_main][COL_SUBW] += self.nodes[self.index_main][COL_CHANGE]
                 self.nodes[self.index_main][COL_CHANGE] = 0
                 if self.nodes[self.index_main][COL_SUBW] == 0:  # empty subw, node deleted
-                    del self.nodes[self.index_main][COL_SUBW]
+                    del self.nodes[self.index_main]
                     self.index_main -= 1
 
                 #reducing window size in copy beforehand
@@ -161,7 +164,7 @@ class Source(node.Node):
                 else:       # put change in subw, make change 0, return node
                     self.nodes_copy[self.index_copy][COL_SUBW] = self.nodes_copy[self.index_copy][COL_CHANGE]
                     if self.nodes_copy[self.index_copy][COL_CHANGE] > 0:    # send change size packet if > 1. otherwise handle later with drop packet
-                        self.change_subwindow_size_of_node(self.nodes_copy[self.index_copy][COL_NODE], self.nodes_copy[self.index_copy][COL_CHANGE])
+                        self.send_change_subwindow_size(self.nodes_copy[self.index_copy][COL_NODE], self.nodes_copy[self.index_copy][COL_CHANGE])
                     self.nodes_copy[self.index_copy][COL_CHANGE] = 0    # after applying change, make change 0
 
                 return el[COL_NODE]
@@ -203,16 +206,17 @@ class Source(node.Node):
 
     def set_sw_change(self, host, port, change):
         """
-        Set positive change to change column, -ve means change = -subwindow_size
+        Set non-zero change to change column,
+        zero means change = -subwindow_size, which will remove node once empty
         :param host:
         :param port:
         :param change:
         """
         for row in self.nodes:
             if (host, port) == row[COL_NODE]:
-                if change > 0:
+                if change:
                     row[COL_CHANGE] = change
-                elif change < 0:
+                else:
                     row[COL_CHANGE] = -1 * row[COL_SUBW]
                 # print(row)
                 return
@@ -264,7 +268,8 @@ class Source(node.Node):
         host = args[1]
         port = int(args[2])
         sw_change = int(args[3])
-        self.set_sw_change(host, port, sw_change)
+        if sw_change:
+            self.set_sw_change(host, port, sw_change)
 
     def process_mode_add_node(self, args):
         """
@@ -277,7 +282,7 @@ class Source(node.Node):
         sw_size = int(args[2])
         new_nodes = self.add_node(count, mode=parameters.MODE_ADD_NODE_PENDING)
         for nd in new_nodes:    # send to processor size info
-            self.set_subwindow_size_of_node(nd, sw_size)
+            self.send_set_subwindow_size_of_node(nd, sw_size)
         for nd in self.pending_nodes:   # update size in pending, which will later be added to source array
             if nd in new_nodes:
                 nd[COL_SUBW] = sw_size
@@ -291,7 +296,7 @@ class Source(node.Node):
             return
         host = args[1]
         port = int(args[2])
-        self.set_sw_change(host, port, -1)
+        self.set_sw_change(host, port, 0)
 
     def do(self, packet):
         """
@@ -313,7 +318,7 @@ class Source(node.Node):
             for row in self.nodes:
                 n = row[COL_NODE]
                 row[COL_SUBW] = size
-                self.set_subwindow_size_of_node(n, size)
+                self.send_set_subwindow_size_of_node(n, size)
 
         elif packet.type == parameters.SIGNAL_MODE:
             args = packet.data[0]
