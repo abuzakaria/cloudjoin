@@ -68,10 +68,19 @@ while True:
         send_packet(p)
 
     elif inp.startswith(parameters.INPUT_MODE):
-        # mode A 127.0.0.1 12345 3
-        # mode J 127.0.0.1 12345 -3
-        # mode L 1 7
+        # Sample input considering default subwindow size 10
+        # mode A 127.0.0.1 12345 -3
+        # mode B 127.0.0.1 12345 3 127.0.0.1 12346
         # mode C 127.0.0.1 12345
+        # mode D 1 3 127.0.0.1 12345 -5
+        # mode E 127.0.0.1 12345 3 127.0.0.1 12346 -3
+        # mode F 1 3 127.0.0.1 12345 -3
+        # mode G 127.0.0.1 12345 10 127.0.0.1 12346
+        # mode H 1 10 127.0.0.1 12345
+        # mode I 1 10 127.0.0.1 12345 -3
+        # mode J 127.0.0.1 12345 3
+        # mode K 127.0.0.1 12345 13 127.0.0.1 12346
+        # mode L 1 7
         args = inp.split()[1:]  # arg list without the mode keyword
         p = Packet(parameters.SIGNAL_MODE)
         p.append_data(args)
