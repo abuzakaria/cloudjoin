@@ -183,15 +183,10 @@ class Source(node.Node):
         """
         start sending packets from buffer
         """
-        # pack = None
-        while len(self.packet_buffer) > 0:
-            pack = self.packet_buffer.popleft()
+        for pack in self.packet_buffer:
             pack.saver = self.get_next_saver()
             self.distribute(pack)
             yield from asyncio.sleep(0.5)
-            # self.temp_flag_sending = False
-            # self.run_server()
-            # src.send(pack, '127.0.0.1', 12350)
 
     def distribute(self, packet):
         """
