@@ -1,3 +1,4 @@
+import copy
 import utils
 
 __author__ = 'Zakaria'
@@ -39,6 +40,7 @@ class Processor(Node):
         self.name = name  # used only for printing purpose, no logic
         self.S_Storage = []
         self.R_Storage = []
+        self.join_result = []
         self.subwindow_size = parameters.SUBWINDOW_DEFAULT_SIZE
         if reliability and availability and throughput and power_consumption and processing_latency and transmission_latency:
             self.cost_value = (reliability * availability * throughput) / \
@@ -95,40 +97,30 @@ class Processor(Node):
 
         :param guest_packet: packet type
         """
-        join_result = Packet(parameters.DATATYPE_JOIN)
-        is_empty = True
         if guest.type == parameters.DATATYPE_R_STREAM:
-            storage = self.R_Storage
+            host_storage = self.S_Storage
         elif guest.type == parameters.DATATYPE_S_STREAM:
-            storage = self.S_Storage
+            host_storage = self.R_Storage
         else:
             return False
 
         i = 0
-        while i < len(storage):
-            print(str(len(storage)) + ' , ' + str(i))
-            host = storage[i]
+        while i < len(host_storage):
+            print(str(len(host_storage)) + ' , ' + str(i))
+            host = host_storage[i]
             # deletion in time based. count based deletion is during store.
             if parameters.parameter_mode == parameters.MODE_TIME:
                 if utils.get_millisecond() > host.store_time + parameters.SUBWINDOW_DEFAULT_TIME:
-                    storage.remove(host)
+                    host_storage.remove(host)
                     # print("removed: " + str(host.type) + str(host.data[0]))
                     continue
 
             print(host.type + str(host.data[0]) + ' X ' + guest.type + str(guest.data[0]))
 
             if host.data[0] == guest.data[0]:   # join matching by id, assumption id is in data[0]
-                join_result.data.append(host.data + guest.data)
-                is_empty = False
+                self.join_result.append(host.data + guest.data)
 
             i += 1
-
-        if is_empty is False:
-            join_result.data.append(parameters.PUNCTUATION)
-        else:
-            print("---------------------")
-
-        return join_result
 
     def drop_oldest_packet(self):
         """
@@ -167,6 +159,19 @@ class Processor(Node):
             if change > 0:
                 self.subwindow_size += change
 
+    def emit_result(self):
+        """
+
+        Emits result to next node, for merging
+        """
+        # if precision value crossed, punctuate, send packet, and clear result packet data
+        if len(self.join_result) >= parameters.PUNCTUATION_PRECISION:
+            temp_join_data = Packet(parameters.DATATYPE_JOIN)
+            temp_join_data.data = copy.deepcopy(self.join_result)
+            self.join_result.clear()
+            temp_join_data.data.append(parameters.PUNCTUATION)
+            self.send(temp_join_data, self.next_node[0], self.next_node[1])
+
     def do(self, packet):
         """
 
@@ -174,13 +179,13 @@ class Processor(Node):
         """
         # print(packet.sender["name"] + ' >| ' + packet.type + ' |> ' + self.name)
         # print("SIZE:" + str(self.S_Storage.subwindow_size) + ' ' + str(self.R_Storage.subwindow_size))
-        join_result = None
 
         if packet.type == parameters.DATATYPE_R_STREAM or packet.type == parameters.DATATYPE_S_STREAM:  # r packet
             print(packet.type + packet.data[0] + str(packet.saver))
             if packet.saver == (self.host, self.port):
                 self.store(packet)  # store r
-            join_result = self.process_joining(packet)
+            self.process_joining(packet)
+            self.emit_result()
 
         elif packet.type == parameters.DATATYPE_DELETE:  # delete packet
             print(packet.type)
@@ -197,9 +202,7 @@ class Processor(Node):
             print(packet.type + ' ' + str(size))
             self.subwindow_size = size
 
-        # separate if: send result if exists
-        if join_result and len(join_result.data) > 0:
-            self.send(join_result, self.next_node[0], self.next_node[1])
+
 
 
 if __name__ == '__main__':
