@@ -117,7 +117,7 @@ class Processor(Node):
 
             print(host.type + str(host.data[0]) + ' X ' + guest.type + str(guest.data[0]))
 
-            if host.data[0] == guest.data[0]:   # join matching by id, assumption id is in data[0]
+            if host.data[parameters.JOIN_CRITERION_INDEX] == guest.data[parameters.JOIN_CRITERION_INDEX]:   # join matching by id, assumption id is in data[0]
                 self.join_result.append(host.data + guest.data)
 
             i += 1
