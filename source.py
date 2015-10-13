@@ -94,8 +94,8 @@ class Source(node.Node):
 
     def send_set_subwindow_size_of_node(self, n, size):
         """
-        set subwindow size of a node, only if current size is 0
-        :param change: change to be applied
+        set subwindow size of a node
+        :param size: int
         :param n: node to be changed
         """
         p = Packet(parameters.DATATYPE_SET_SUBWINDOW_SIZE)
@@ -123,6 +123,7 @@ class Source(node.Node):
 
             if len(self.nodes_copy) == 0:  # assign flag if copy is loaded
                 self.flag_copy_load_complete = False
+                self.index_main = -1    # init main index when copy again
                 self.add_pending_nodes()  # only add pending node after end of a cycle
 
             if self.flag_copy_load_complete is False:  # if copy not loaded, load copy
@@ -131,6 +132,10 @@ class Source(node.Node):
                 temp_row = deepcopy(self.nodes[self.index_main])
                 self.nodes_copy.append(temp_row)
 
+                # reducing window size in copy beforehand
+                if self.nodes_copy[self.index_main][COL_CHANGE] < 0:
+                    self.nodes_copy[self.index_main][COL_SUBW] += self.nodes_copy[self.index_main][COL_CHANGE]
+
                 # after copying done, apply change in main list
                 self.nodes[self.index_main][COL_SUBW] += self.nodes[self.index_main][COL_CHANGE]
                 self.nodes[self.index_main][COL_CHANGE] = 0
@@ -138,9 +143,6 @@ class Source(node.Node):
                     del self.nodes[self.index_main]
                     self.index_main -= 1
 
-                # reducing window size in copy beforehand
-                if self.nodes_copy[self.index_main][COL_CHANGE] < 0:
-                    self.nodes_copy[self.index_main][COL_SUBW] += self.nodes_copy[self.index_main][COL_CHANGE]
 
                 # update flag true if copy done
                 if len(self.nodes) == len(self.nodes_copy):
@@ -158,24 +160,29 @@ class Source(node.Node):
             # if subw is 1, change not 0, put change in subw, make change 0, return node
             elif self.nodes_copy[self.index_copy][COL_SUBW] == 1:
                 el = self.nodes_copy[self.index_copy]
-                if self.nodes_copy[self.index_copy][
-                    COL_CHANGE] == 0:  # change is 0, remove element, adjust index, return node
+
+                # if change is 0, remove element, adjust index, return node
+                if self.nodes_copy[self.index_copy][COL_CHANGE] == 0:
+
                     del self.nodes_copy[self.index_copy]
                     self.index_copy -= 1
-                else:  # put change in subw, make change 0, return node
+
+                # put change in subw, make change 0, return node
+                else:
+
                     self.nodes_copy[self.index_copy][COL_SUBW] = self.nodes_copy[self.index_copy][COL_CHANGE]
-                    if self.nodes_copy[self.index_copy][
-                        COL_CHANGE] > 0:  # send change size packet if > 1. otherwise handle later with drop packet
+                    if self.nodes_copy[self.index_copy][COL_CHANGE] > 0:
+                    # send change size packet if > 1. otherwise handle later with drop packet
                         self.send_change_subwindow_size(self.nodes_copy[self.index_copy][COL_NODE],
                                                         self.nodes_copy[self.index_copy][COL_CHANGE])
                     self.nodes_copy[self.index_copy][COL_CHANGE] = 0  # after applying change, make change 0
 
                 return el[COL_NODE]
 
-            elif self.nodes_copy[self.index_copy][COL_SUBW] < 0:
+            else:
                 self.send_delete_packet(self.nodes_copy[self.index_copy][COL_NODE])
-                if self.nodes_copy[self.index_copy][COL_SUBW] < -1:
-                    self.nodes_copy[self.index_copy][COL_SUBW] += 1
+                if self.nodes_copy[self.index_copy][COL_CHANGE] < -1:
+                    self.nodes_copy[self.index_copy][COL_CHANGE] += 1
                 else:
                     del self.nodes_copy[self.index_copy]
                     self.index_copy -= 1
@@ -188,6 +195,7 @@ class Source(node.Node):
         """
         for pack in self.packet_buffer:
             pack.saver = self.get_next_saver()
+            print(pack.type + pack.data[0] + ' saver: ' + str(pack.saver))
             self.distribute(pack)
             yield from asyncio.sleep(0.5)
 
@@ -197,7 +205,7 @@ class Source(node.Node):
         :param packet: packet to distribute
         """
 
-        print(packet.type + packet.data[0] + str(packet.saver))
+
         for row in self.nodes:
             (host, port) = row[COL_NODE]
             self.send(packet, host, port)
@@ -295,11 +303,13 @@ class Source(node.Node):
         :param sw_size: int
         """
         new_nodes = self.add_node(count, mode=parameters.MODE_ADD_NODE_PENDING)
-        for nd in new_nodes:  # send to processor size info
-            self.send_set_subwindow_size_of_node(nd, sw_size)
-        for nd in self.pending_nodes:  # update size in pending, which will later be added to source array
-            if nd in new_nodes:
+        if new_nodes:
+            for nd in new_nodes:  # send to processor size info
+                self.send_set_subwindow_size_of_node(nd[COL_NODE], sw_size)
                 nd[COL_SUBW] = sw_size
+            # for nd in self.pending_nodes:  # update size in pending, which will later be added to source array
+            #     if nd in new_nodes:
+            #         nd[COL_SUBW] = sw_size
 
     def mode_function_remove_node(self, host, port):
         """
