@@ -165,7 +165,7 @@ class Processor(Node):
         Emits result to next node, for merging
         """
         # if precision value crossed, punctuate, send packet, and clear result packet data
-        if len(self.join_result) >= parameters.PUNCTUATION_PRECISION:
+        if len(self.join_result) > 0:
             temp_join_data = Packet(parameters.DATATYPE_JOIN)
             temp_join_data.data = copy.deepcopy(self.join_result)
             self.join_result.clear()
