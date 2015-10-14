@@ -67,6 +67,13 @@ while True:
         p.append_data(n)
         send_packet(p)
 
+    elif inp.startswith(parameters.INPUT_SET_SUBWINDOW_TIME):
+        args = inp.split()
+        n = int(args[1])
+        p = Packet(parameters.SIGNAL_SET_SUBWINDOW_TIME)
+        p.append_data(n)
+        send_packet(p)
+
     elif inp.startswith(parameters.INPUT_MODE):
         # Sample input considering default subwindow size 10
         # mode A 127.0.0.1 12345 -3

@@ -143,7 +143,6 @@ class Source(node.Node):
                     del self.nodes[self.index_main]
                     self.index_main -= 1
 
-
                 # update flag true if copy done
                 if len(self.nodes) == len(self.nodes_copy):
                     self.flag_copy_load_complete = True
@@ -204,8 +203,6 @@ class Source(node.Node):
         distributes packet to different processor nodes
         :param packet: packet to distribute
         """
-
-
         for row in self.nodes:
             (host, port) = row[COL_NODE]
             self.send(packet, host, port)
@@ -332,6 +329,11 @@ class Source(node.Node):
 
         elif packet.type == parameters.SIGNAL_ADD_NODE:
             self.add_node(int(packet.data[0]), mode=parameters.MODE_ADD_NODE_DEFAULT)
+
+        elif packet.type == parameters.SIGNAL_SET_SUBWINDOW_TIME and \
+                        parameters.parameter_mode == parameters.MODE_TIME:
+            t = int(packet.data[0])
+            utils.set_subwindow_time(t)
 
         elif packet.type == parameters.SIGNAL_SET_SUBWINDOW_SIZE and \
                         parameters.parameter_mode == parameters.MODE_COUNT:
