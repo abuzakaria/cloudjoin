@@ -56,6 +56,7 @@ class Source(node.Node):
         if temp_node_list:
             if mode == parameters.MODE_ADD_NODE_DEFAULT:  # add node to node list
                 self.nodes.extend(temp_node_list)
+                self.send_merger_node_serial()
                 print("After acquiring nodes:\n\t" + ("\n\t".join(map(str, self.nodes))))
             elif mode == parameters.MODE_ADD_NODE_PENDING:  # add node to pending node list
                 self.pending_nodes.extend(temp_node_list)
@@ -70,6 +71,17 @@ class Source(node.Node):
         if len(self.pending_nodes) > 0:
             self.nodes.extend(self.pending_nodes)
             self.pending_nodes.clear()
+            self.send_merger_node_serial()
+
+    def send_merger_node_serial(self):
+        """
+        Sends merger nodes in serial. For merge, merger needs this info.
+
+        """
+        p = Packet(parameters.DATATYPE_NODE_SERIAL)
+        for nd in self.nodes:
+            p.data.append(nd[COL_NODE])
+        self.send(p, parameters.MERGER_HOST, parameters.MERGER_PORT)
 
     def send_delete_packet(self, processor_node):
         """
@@ -141,6 +153,7 @@ class Source(node.Node):
                 self.nodes[self.index_main][COL_CHANGE] = 0
                 if self.nodes[self.index_main][COL_SUBW] == 0:  # empty subw, node deleted
                     del self.nodes[self.index_main]
+                    self.send_merger_node_serial()
                     self.index_main -= 1
 
                 # update flag true if copy done

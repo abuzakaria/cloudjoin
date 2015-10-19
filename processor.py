@@ -40,13 +40,12 @@ class Processor(Node):
         self.name = name  # used only for printing purpose, no logic
         self.S_Storage = []
         self.R_Storage = []
-        self.join_result = []
         self.subwindow_size = parameters.SUBWINDOW_DEFAULT_SIZE
         if reliability and availability and throughput and power_consumption and processing_latency and transmission_latency:
             self.cost_value = (reliability * availability * throughput) / \
                               (power_consumption * processing_latency * transmission_latency)
         self.loop = asyncio.get_event_loop()
-        sys.stdout = open('_log_' + self.name + '.txt', 'w')
+        # sys.stdout = open('_log_' + self.name + '.txt', 'w')
 
     def send_heartbeat(self, interval):
         """
@@ -66,23 +65,20 @@ class Processor(Node):
         # determine in which queue to store packet
         if packet.type == parameters.DATATYPE_R_STREAM:
             storage = self.R_Storage
+            current_size = len(self.R_Storage)
         elif packet.type == parameters.DATATYPE_S_STREAM:
             storage = self.S_Storage
+            current_size = len(self.S_Storage)
         else:
             return False
-
-        # need this for time based and for discarding oldest among count based queues
-        packet.store_time = utils.get_millisecond()
 
         # if count based join, check both queues' length, if less then store,
         # if equal then drop the oldest of the two queue and store,
         # else something wrong
         if parameters.parameter_mode == parameters.MODE_COUNT:
-            len_r = len(self.R_Storage)
-            len_s = len(self.S_Storage)
-            if len_r + len_s == self.subwindow_size:
-                self.drop_oldest_packet()
-            elif len_r + len_s > self.subwindow_size:
+            if current_size == self.subwindow_size and self.subwindow_size > 0:
+                storage.pop(0)
+            elif current_size > self.subwindow_size:
                 return False    # error case
             storage.append(packet)  # storing here
 
@@ -95,14 +91,17 @@ class Processor(Node):
         """
 
 
-        :param guest_packet: packet type
+
+        :param guest: packet
         """
         if guest.type == parameters.DATATYPE_R_STREAM:
             host_storage = self.S_Storage
+            join_result = Packet(parameters.DATATYPE_R_JOIN)
         elif guest.type == parameters.DATATYPE_S_STREAM:
             host_storage = self.R_Storage
+            join_result = Packet(parameters.DATATYPE_S_JOIN)
         else:
-            return False
+            return None
 
         i = 0
         while i < len(host_storage):
@@ -117,37 +116,42 @@ class Processor(Node):
 
             print(host.type + str(host.data[0]) + ' X ' + guest.type + str(guest.data[0]))
 
-            if host.data[parameters.JOIN_CRITERION_INDEX] == guest.data[parameters.JOIN_CRITERION_INDEX]:   # join matching by id, assumption id is in data[0]
-                self.join_result.append(host.data + guest.data)
+            if host.data[parameters.JOIN_CRITERION_INDEX] == guest.data[parameters.JOIN_CRITERION_INDEX]:
+                join_result.data.append(host.data + guest.data)
+                empty_result = False
 
             i += 1
 
-    def drop_oldest_packet(self):
-        """
+        return join_result
 
-        Drops the oldest packet from R-storage or S-storage whoever has the oldest
-        """
-        len_r = len(self.R_Storage)
-        len_s = len(self.S_Storage)
-        if len_s == 0 and len_r == 0:
-            return
-        elif len_r == self.subwindow_size:    # if no S, but R is full
-            self.R_Storage.pop(0)
-        elif len_s == self.subwindow_size:  # if no R, but S is full
-            self.S_Storage.pop(0)
-        # first element of S is older than first element of R
-        elif self.R_Storage[0].store_time > self.S_Storage[0].store_time:
-            self.S_Storage.pop(0)
-        # first element of R is older than first element of S
-        elif self.S_Storage[0].store_time >= self.R_Storage[0].store_time:
-            self.R_Storage.pop(0)
+
+    # def drop_oldest_packet(self):
+    #     """
+    #
+    #     Drops the oldest packet from R-storage or S-storage whoever has the oldest
+    #     """
+    #     len_r = len(self.R_Storage)
+    #     len_s = len(self.S_Storage)
+    #     if len_s == 0 and len_r == 0:
+    #         return
+    #     elif len_r == self.subwindow_size:    # if no S, but R is full
+    #         self.R_Storage.pop(0)
+    #     elif len_s == self.subwindow_size:  # if no R, but S is full
+    #         self.S_Storage.pop(0)
+    #     # first element of S is older than first element of R
+    #     elif self.R_Storage[0].store_time > self.S_Storage[0].store_time:
+    #         self.S_Storage.pop(0)
+    #     # first element of R is older than first element of S
+    #     elif self.S_Storage[0].store_time >= self.R_Storage[0].store_time:
+    #         self.R_Storage.pop(0)
 
     def decrease_size(self):
         """
         remove number of packets and decrease size by 1
         """
         if parameters.parameter_mode == parameters.MODE_COUNT:
-            self.drop_oldest_packet()
+            self.R_Storage.pop(0)
+            self.S_Storage.pop(0)
             self.subwindow_size -= 1
 
     def increase_size(self, change):
@@ -159,18 +163,14 @@ class Processor(Node):
             if change > 0:
                 self.subwindow_size += change
 
-    def emit_result(self):
+    def emit_result(self, join_result):
         """
 
         Emits result to next node, for merging
         """
         # if precision value crossed, punctuate, send packet, and clear result packet data
-        if len(self.join_result) > 0:
-            temp_join_data = Packet(parameters.DATATYPE_JOIN)
-            temp_join_data.data = copy.deepcopy(self.join_result)
-            self.join_result.clear()
-            temp_join_data.data.append(parameters.PUNCTUATION)
-            self.send(temp_join_data, self.next_node[0], self.next_node[1])
+        if len(join_result.data):
+            self.send(join_result, self.next_node[0], self.next_node[1])
 
     def do(self, packet):
         """
@@ -184,8 +184,8 @@ class Processor(Node):
             print(packet.type + packet.data[0] + str(packet.saver))
             if packet.saver == (self.host, self.port):
                 self.store(packet)  # store r
-            self.process_joining(packet)
-            self.emit_result()
+            join_result = self.process_joining(packet)
+            self.emit_result(join_result)
 
         elif packet.type == parameters.DATATYPE_DELETE:  # delete packet
             print(packet.type)

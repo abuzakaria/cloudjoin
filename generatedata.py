@@ -14,9 +14,7 @@ for i in range(0, 200):
         target.write(str(index_r.pop(0)) + '\n')
     else:
         target.write(str(index_s.pop(0)) + '\n')
-    target.write(chr(random.randint(97, 122)) +
-                 chr(random.randint(97, 122)) +
-                 chr(random.randint(97, 122)) +
+    target.write(chr(random.randint(97, 100)) +
                  '\n')
 
 
