@@ -14,6 +14,8 @@ class Node:
     port = None
     membership_manager = None
     loop = None
+    network_buffer = None
+    clients = {}
 
     def __init__(self, name=None, host=None, port=None):
         """
@@ -29,6 +31,7 @@ class Node:
         if port:
             self.port = port
         self.loop = asyncio.get_event_loop()
+        self.network_buffer = asyncio.Queue()
 
     def register_membership(self, manager):
         """
@@ -67,25 +70,23 @@ class Node:
         :param receiver_host: host of receiver
         :param receiver_port: port of receiver
         """
-        # print(self.name + ' >| ' + message.type + ' |> ' + str(receiver_port))
+        print(self.name + ' >| ' + message.type + ' |> ' + str(receiver_port))
         try:
             reader, writer = yield from asyncio.open_connection(receiver_host, receiver_port, loop=self.loop)
             writer.write(pickle.dumps(message))
             yield from writer.drain()
 
-            # response = yield from reader.read()
-            # print(pickle.loads(response))
-
             writer.close()
-        except:
-            print("ERROR: Sending failed to " + str(receiver_host) + ":" + str(receiver_port))
+        except Exception as e:
+            print(e)
 
     def run_server(self):
         """
         Wrapper to run server that receives packets
         """
-        job = asyncio.start_server(self.handle_packet, self.host, self.port, loop=self.loop)
+        job = asyncio.start_server(self.handle_packet, self.host, self.port, loop=self.loop, reuse_address=True)
         server = self.loop.run_until_complete(job)
+        asyncio.async(self.watch_buffer())
 
         print('MSG: Serving on {}'.format(server.sockets[0].getsockname()))
         try:
@@ -107,19 +108,14 @@ class Node:
         :param writer: asyncio writer
         """
         data = yield from reader.read()
-        packet = pickle.loads(data)
-        # print(self.name + ' <| ' + packet.type + ' <| ' + packet.sender["name"])
+        print(data)
+        yield from self.network_buffer.put(data)
 
-        # sender = writer.get_extra_info('peername')
-        if packet:
-            self.do(packet)
-
-        # print("Send: %r" % message)
-        # writer.write(pickle.dumps("fail"))
-        # yield from writer.drain()
-
-        # print("MSG: Close receiving socket")
-        writer.close()
+    @asyncio.coroutine
+    def watch_buffer(self):
+        while True:
+            row = yield from self.network_buffer.get()
+            self.do(pickle.loads(row))
 
     def do(self, packet):
         """
@@ -127,4 +123,4 @@ class Node:
         handle packet and do stuff
         :param packet: packet data
         """
-        print("Override this method")
+        raise NotImplementedError

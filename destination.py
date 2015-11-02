@@ -20,38 +20,31 @@ class Destination(node.Node):
     is_merging_s = False
 
     @asyncio.coroutine
-    def merge_r(self):
+    def merge_r(self, packet):
         print("merge r")
-        if self.is_merging_r:
-            return
-        self.is_merging_r = True
-        for packet in self.r_join_results_queue:
-            if (packet.sender['host'], packet.sender['port']) == self.nodes[self.node_index_r_join]:
-                self.node_index_r_join += 1
-                self.node_index_r_join %= len(self.nodes)
-                yield from self.print_packet(packet)
-        self.is_merging_r = False
+        if (packet.sender['host'], packet.sender['port']) == self.nodes[self.node_index_r_join]:
+            self.node_index_r_join += 1
+            self.node_index_r_join %= len(self.nodes)
+            yield from self.print_packet(packet)
+
 
     @asyncio.coroutine
-    def merge_s(self):
+    def merge_s(self, packet):
         print("merge s")
-        if self.is_merging_s:
-            return
-        self.is_merging_s = True
-        for packet in self.s_join_results_queue:
-            if (packet.sender['host'], packet.sender['port']) == self.nodes[self.node_index_s_join]:
+        if (packet.sender['host'], packet.sender['port']) == self.nodes[self.node_index_s_join]:
                 self.node_index_s_join += 1
                 self.node_index_s_join %= len(self.nodes)
                 yield from self.print_packet(packet)
-        self.is_merging_s = False
+
 
     @asyncio.coroutine
-    def print_packet(self, packet):
-        print(packet.type + str(len(packet.data)))
+    def print_packet(self, packet, filename="_result.txt"):
         # print(packet.type + str(len(packet.data)))
-        for p in packet.data:
-            print(packet.type + ' : ' + json.dumps(p))
-        print("----------------------------------------")
+        # print(packet.type + str(len(packet.data)))
+        with open(filename, 'a') as f:
+            for p in packet.data:
+                print(packet.type + ' : ' + json.dumps(p), file=f)
+            print("----------------------------------------", file=f)
 
     def do(self, packet):
         """
@@ -60,12 +53,12 @@ class Destination(node.Node):
         :param sender:
         """
         if packet.type == parameters.DATATYPE_R_JOIN:
-            self.r_join_results_queue.append(packet)
-            asyncio.async(self.merge_r())
+            asyncio.async(self.merge_r(packet))
+            asyncio.async(self.print_packet(packet, "_log_dest.txt"))
 
         elif packet.type == parameters.DATATYPE_S_JOIN:
-            self.s_join_results_queue.append(packet)
-            asyncio.async(self.merge_s())
+            asyncio.async(self.merge_s(packet))
+            asyncio.async(self.print_packet(packet, "_log_dest.txt"))
 
         elif packet.type == parameters.DATATYPE_NODE_SERIAL:
             self.nodes = packet.data[:]

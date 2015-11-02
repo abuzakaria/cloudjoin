@@ -4,10 +4,10 @@ import random
 header = ["R", "S"]
 filename = "data.txt"
 target = open(filename, 'w')
-index_r = list(range(1, 200))
+index_r = list(range(1, 20000))
 index_s = index_r[:]
 
-for i in range(0, 200):
+for i in range(0, 20000):
     h = random.choice(header)
     target.write(h + '\n')
     if h == "R":

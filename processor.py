@@ -40,11 +40,13 @@ class Processor(Node):
         self.name = name  # used only for printing purpose, no logic
         self.S_Storage = []
         self.R_Storage = []
-        self.subwindow_size = parameters.SUBWINDOW_DEFAULT_SIZE
+        self.subwindow_size_r = self.subwindow_size_s = parameters.SUBWINDOW_DEFAULT_SIZE
         if reliability and availability and throughput and power_consumption and processing_latency and transmission_latency:
             self.cost_value = (reliability * availability * throughput) / \
                               (power_consumption * processing_latency * transmission_latency)
         self.loop = asyncio.get_event_loop()
+        self.network_buffer = asyncio.Queue()
+        self.clients = {}
         # sys.stdout = open('_log_' + self.name + '.txt', 'w')
 
     def send_heartbeat(self, interval):
@@ -66,9 +68,11 @@ class Processor(Node):
         if packet.type == parameters.DATATYPE_R_STREAM:
             storage = self.R_Storage
             current_size = len(self.R_Storage)
+            max_size = self.subwindow_size_r
         elif packet.type == parameters.DATATYPE_S_STREAM:
             storage = self.S_Storage
             current_size = len(self.S_Storage)
+            max_size = self.subwindow_size_s
         else:
             return False
 
@@ -76,9 +80,9 @@ class Processor(Node):
         # if equal then drop the oldest of the two queue and store,
         # else something wrong
         if parameters.parameter_mode == parameters.MODE_COUNT:
-            if current_size == self.subwindow_size and self.subwindow_size > 0:
+            if current_size == max_size and max_size > 0:
                 storage.pop(0)
-            elif current_size > self.subwindow_size:
+            elif current_size > max_size:
                 return False    # error case
             storage.append(packet)  # storing here
 
@@ -105,7 +109,7 @@ class Processor(Node):
 
         i = 0
         while i < len(host_storage):
-            print(str(len(host_storage)) + ' , ' + str(i))
+            # print(str(len(host_storage)) + ' , ' + str(i))
             host = host_storage[i]
             # deletion in time based. count based deletion is during store.
             if parameters.parameter_mode == parameters.MODE_TIME:
@@ -114,63 +118,40 @@ class Processor(Node):
                     # print("removed: " + str(host.type) + str(host.data[0]))
                     continue
 
-            print(host.type + str(host.data[0]) + ' X ' + guest.type + str(guest.data[0]))
+            # print(host.type + str(host.data[0]) + ' X ' + guest.type + str(guest.data[0]))
 
-            if host.data[parameters.JOIN_CRITERION_INDEX] == guest.data[parameters.JOIN_CRITERION_INDEX]:
-                join_result.data.append(host.data + guest.data)
-                empty_result = False
+            # if host.data[parameters.JOIN_CRITERION_INDEX] == guest.data[parameters.JOIN_CRITERION_INDEX]:
+            join_result.data.append(host.data + guest.data)
 
             i += 1
 
-        return join_result
+        self.send(join_result, self.next_node[0], self.next_node[1])
 
-
-    # def drop_oldest_packet(self):
-    #     """
-    #
-    #     Drops the oldest packet from R-storage or S-storage whoever has the oldest
-    #     """
-    #     len_r = len(self.R_Storage)
-    #     len_s = len(self.S_Storage)
-    #     if len_s == 0 and len_r == 0:
-    #         return
-    #     elif len_r == self.subwindow_size:    # if no S, but R is full
-    #         self.R_Storage.pop(0)
-    #     elif len_s == self.subwindow_size:  # if no R, but S is full
-    #         self.S_Storage.pop(0)
-    #     # first element of S is older than first element of R
-    #     elif self.R_Storage[0].store_time > self.S_Storage[0].store_time:
-    #         self.S_Storage.pop(0)
-    #     # first element of R is older than first element of S
-    #     elif self.S_Storage[0].store_time >= self.R_Storage[0].store_time:
-    #         self.R_Storage.pop(0)
-
-    def decrease_size(self):
+    def decrease_size(self, region):
         """
         remove number of packets and decrease size by 1
         """
         if parameters.parameter_mode == parameters.MODE_COUNT:
-            self.R_Storage.pop(0)
-            self.S_Storage.pop(0)
-            self.subwindow_size -= 1
+            if region == 0:
+                if len(self.R_Storage):
+                    self.R_Storage.pop(0)
+                self.subwindow_size_r -= 1
+            elif region == 1:
+                if len(self.S_Storage):
+                    self.S_Storage.pop(0)
+                self.subwindow_size_s -= 1
 
-    def increase_size(self, change):
+    def increase_size(self, change, region):
         """
         Increase subwindow size by change
         :param change: int
         """
         if parameters.parameter_mode == parameters.MODE_COUNT:
             if change > 0:
-                self.subwindow_size += change
-
-    def emit_result(self, join_result):
-        """
-
-        Emits result to next node, for merging
-        """
-        # if precision value crossed, punctuate, send packet, and clear result packet data
-        if len(join_result.data):
-            self.send(join_result, self.next_node[0], self.next_node[1])
+                if region == 0:
+                    self.subwindow_size_r += change
+                elif region == 1:
+                    self.subwindow_size_s += change
 
     def do(self, packet):
         """
@@ -184,25 +165,31 @@ class Processor(Node):
             print(packet.type + packet.data[0] + str(packet.saver))
             if packet.saver == (self.host, self.port):
                 self.store(packet)  # store r
-            join_result = self.process_joining(packet)
-            self.emit_result(join_result)
+                self.process_joining(packet)
 
-        elif packet.type == parameters.DATATYPE_DELETE:  # delete packet
+
+        elif packet.type == parameters.DATATYPE_DELETE_R:  # delete packet for R region
             print(packet.type)
-            self.decrease_size()
+            self.decrease_size(0)
 
-        elif packet.type == parameters.DATATYPE_CHANGE_SUBWINDOW_SIZE:
+        elif packet.type == parameters.DATATYPE_DELETE_S:  # delete packet for S region
+            print(packet.type)
+            self.decrease_size(1)
+
+        elif packet.type == parameters.DATATYPE_INCREASE_SUBWINDOW_SIZE_R:
             change = int(packet.data[0])
             print(packet.type + ' ' + change)
-            self.increase_size(change)
-            self.increase_size(change)
+            self.increase_size(change, 0)
+
+        elif packet.type == parameters.DATATYPE_INCREASE_SUBWINDOW_SIZE_S:
+            change = int(packet.data[0])
+            print(packet.type + ' ' + change)
+            self.increase_size(change, 1)
 
         elif packet.type == parameters.DATATYPE_SET_SUBWINDOW_SIZE:
             size = packet.data[0]
             print(packet.type + ' ' + str(size))
-            self.subwindow_size = size
-
-
+            self.subwindow_size_r = self.subwindow_size_s = size
 
 
 if __name__ == '__main__':

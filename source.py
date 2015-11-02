@@ -18,13 +18,16 @@ COL_CHANGE = 2
 
 # source or first node of the network
 class Source(node.Node):
-    packet_buffer = deque()
+    dummy_packets_to_send = deque()
 
     nodes = []
-    nodes_copy = []
-    index_main = -1
-    index_copy = -1
-    flag_copy_load_complete = False
+    index_of_nodes = [-1, -1]
+
+    nodes_copy = [[], []]
+    index_of_nodes_copy = [-1, -1]
+    flag_copy_load_complete = [False, False]
+
+    flag_apply_change = []
 
     pending_nodes = []
 
@@ -42,7 +45,8 @@ class Source(node.Node):
         if port:
             self.port = port
         self.loop = asyncio.get_event_loop()
-        self.load_packet_buffer()
+        self.network_buffer = asyncio.Queue()
+        self.load_dummy_packets()
         self.membership_manager = MembershipManager(self.loop)
 
     def add_node(self, n, mode=parameters.MODE_ADD_NODE_DEFAULT):
@@ -83,23 +87,36 @@ class Source(node.Node):
             p.data.append(nd[COL_NODE])
         self.send(p, parameters.MERGER_HOST, parameters.MERGER_PORT)
 
-    def send_delete_packet(self, processor_node):
+    def send_delete_packet(self, processor_node, storage_type):
         """
         send packet to delete element and decrease size of processor node
+        :param type: int. 0 means delete R, 1 means delete S
         :param processor_node:
         """
-
-        p = Packet(parameters.DATATYPE_DELETE)
+        if storage_type == 0:
+            p = Packet(parameters.DATATYPE_DELETE_R)
+        elif storage_type == 1:
+            p = Packet(parameters.DATATYPE_DELETE_S)
+        else:
+            print("invalid delete packet")
+            return
         print(p.type + ' ' + str(processor_node))
         self.send(p, processor_node[0], processor_node[1])
 
-    def send_change_subwindow_size(self, n, change):
+    def send_increase_subwindow_size(self, n, change, region):
         """
         change subwindow size of a node
+        :param region: which region to change size
         :param change: change to be applied
         :param n: node to be changed
         """
-        p = Packet(parameters.DATATYPE_CHANGE_SUBWINDOW_SIZE)
+        if region == 0:
+            p = Packet(parameters.DATATYPE_INCREASE_SUBWINDOW_SIZE_R)
+        elif region == 1:
+            p = Packet(parameters.DATATYPE_INCREASE_SUBWINDOW_SIZE_S)
+        else:
+            print("invalid increase sw packet")
+            return
         p.append_data(change)
         print(p.type + ' ' + str(n) + str(change))
         self.send(p, n[0], n[1])
@@ -115,102 +132,129 @@ class Source(node.Node):
         print(p.type + ' ' + str(n) + str(size))
         self.send(p, n[0], n[1])
 
-    def get_next_saver(self):
+    def apply_change_in_main_node_list(self, index):
+        """
+        Receive exactly 2 confirmations and then apply change.
+        :param index: int. index of node/flag array to check whether to update
+        """
+        if self.flag_apply_change[index] == 0:     # if only one command to apply change, wait for another
+            self.flag_apply_change[index] += 1
+        elif self.flag_apply_change[index] == 1:    # if already one command appeared before, apply change, reset flag
+            self.flag_apply_change[index] = 0
+            # after copying done, apply change in main list
+            for i in range(len(self.index_of_nodes)):
+                self.nodes[self.index_of_nodes[i]][COL_SUBW] += self.nodes[self.index_of_nodes[i]][COL_CHANGE]
+                self.nodes[self.index_of_nodes[i]][COL_CHANGE] = 0
+                if self.nodes[self.index_of_nodes[i]][COL_SUBW] == 0:  # empty subw, node deleted
+                    del self.nodes[self.index_of_nodes[i]]
+                    del self.flag_apply_change[index]       # delete corresponding flag for node
+                    self.send_merger_node_serial()
+                    self.index_of_nodes[i] -= 1
+
+    @asyncio.coroutine
+    def get_next_saver(self, packet_type=None):
         """
         Find the next saver of a packet
 
         :return: node: host and port tuple
         """
+        r_or_s = 0
         if parameters.parameter_mode == parameters.MODE_TIME:
             # if time based, just rotate turn
 
             self.add_pending_nodes()  # doesnt matter when add new node.
 
-            self.index_main += 1
-            self.index_main %= len(self.nodes)
-            return self.nodes[self.index_main][COL_NODE]
+            self.index_of_nodes[r_or_s] += 1
+            self.index_of_nodes[r_or_s] %= len(self.nodes)
+            return self.nodes[self.index_of_nodes[r_or_s]][COL_NODE]
 
         elif parameters.parameter_mode == parameters.MODE_COUNT:
             # else if count based, complicated process
 
-            if len(self.nodes_copy) == 0:  # assign flag if copy is loaded
-                self.flag_copy_load_complete = False
-                self.index_main = -1    # init main index when copy again
+            # set index for either r or s type
+            if packet_type == parameters.DATATYPE_R_STREAM:
+                r_or_s = 0
+            elif packet_type == parameters.DATATYPE_S_STREAM:
+                r_or_s = 1
+            else:
+                return None
+
+            if len(self.nodes_copy[r_or_s]) == 0:  # assign flag if copy is loaded
+                self.flag_copy_load_complete[r_or_s] = False
+                self.index_of_nodes[r_or_s] = -1    # init main index when copy again
                 self.add_pending_nodes()  # only add pending node after end of a cycle
 
-            if self.flag_copy_load_complete is False:  # if copy not loaded, load copy
-                self.index_main += 1
-                self.index_main %= len(self.nodes)
-                temp_row = deepcopy(self.nodes[self.index_main])
-                self.nodes_copy.append(temp_row)
+            if self.flag_copy_load_complete[r_or_s] is False:  # if copy not loaded, load copy
+                self.index_of_nodes[r_or_s] += 1
+                self.index_of_nodes[r_or_s] %= len(self.nodes)
+                temp_row = deepcopy(self.nodes[self.index_of_nodes[r_or_s]])
+                self.nodes_copy[r_or_s].append(temp_row)
+
+                if not self.flag_apply_change:
+                    self.flag_apply_change = [0] * len(self.nodes)      # init appy change flag with 0
 
                 # reducing window size in copy beforehand
-                if self.nodes_copy[self.index_main][COL_CHANGE] < 0:
-                    self.nodes_copy[self.index_main][COL_SUBW] += self.nodes_copy[self.index_main][COL_CHANGE]
+                if self.nodes_copy[r_or_s][self.index_of_nodes[r_or_s]][COL_CHANGE] < 0:
+                    self.nodes_copy[r_or_s][self.index_of_nodes[r_or_s]][COL_SUBW] += self.nodes_copy[r_or_s][self.index_of_nodes[r_or_s]][COL_CHANGE]
 
-                # after copying done, apply change in main list
-                self.nodes[self.index_main][COL_SUBW] += self.nodes[self.index_main][COL_CHANGE]
-                self.nodes[self.index_main][COL_CHANGE] = 0
-                if self.nodes[self.index_main][COL_SUBW] == 0:  # empty subw, node deleted
-                    del self.nodes[self.index_main]
-                    self.send_merger_node_serial()
-                    self.index_main -= 1
+                self.apply_change_in_main_node_list(self.index_of_nodes[r_or_s])
 
                 # update flag true if copy done
-                if len(self.nodes) == len(self.nodes_copy):
-                    self.flag_copy_load_complete = True
+                if len(self.nodes) == len(self.nodes_copy[r_or_s]):
+                    self.flag_copy_load_complete[r_or_s] = True
 
-            self.index_copy += 1
-            self.index_copy %= len(self.nodes_copy)
+            self.index_of_nodes_copy[r_or_s] += 1
+            self.index_of_nodes_copy[r_or_s] %= len(self.nodes_copy[r_or_s])
 
             # if subw more than 1, reduce and return node
-            if self.nodes_copy[self.index_copy][COL_SUBW] > 1:
-                self.nodes_copy[self.index_copy][COL_SUBW] -= 1
-                return self.nodes_copy[self.index_copy][COL_NODE]
+            if self.nodes_copy[r_or_s][self.index_of_nodes_copy[r_or_s]][COL_SUBW] > 1:
+                self.nodes_copy[r_or_s][self.index_of_nodes_copy[r_or_s]][COL_SUBW] -= 1
+                return self.nodes_copy[r_or_s][self.index_of_nodes_copy[r_or_s]][COL_NODE]
 
             # if subw is 1, change is 0, remove element, adjust index, return node
             # if subw is 1, change not 0, put change in subw, make change 0, return node
-            elif self.nodes_copy[self.index_copy][COL_SUBW] == 1:
-                el = self.nodes_copy[self.index_copy]
+            elif self.nodes_copy[r_or_s][self.index_of_nodes_copy[r_or_s]][COL_SUBW] == 1:
+                el = self.nodes_copy[r_or_s][self.index_of_nodes_copy[r_or_s]]
 
                 # if change is 0, remove element, adjust index, return node
-                if self.nodes_copy[self.index_copy][COL_CHANGE] == 0:
+                if self.nodes_copy[r_or_s][self.index_of_nodes_copy[r_or_s]][COL_CHANGE] == 0:
 
-                    del self.nodes_copy[self.index_copy]
-                    self.index_copy -= 1
+                    del self.nodes_copy[r_or_s][self.index_of_nodes_copy[r_or_s]]
+                    self.index_of_nodes_copy[r_or_s] -= 1
 
                 # put change in subw, make change 0, return node
                 else:
 
-                    self.nodes_copy[self.index_copy][COL_SUBW] = self.nodes_copy[self.index_copy][COL_CHANGE]
-                    if self.nodes_copy[self.index_copy][COL_CHANGE] > 0:
+                    self.nodes_copy[r_or_s][self.index_of_nodes_copy[r_or_s]][COL_SUBW] = self.nodes_copy[r_or_s][self.index_of_nodes_copy[r_or_s]][COL_CHANGE]
+                    if self.nodes_copy[r_or_s][self.index_of_nodes_copy[r_or_s]][COL_CHANGE] > 0:
                     # send change size packet if > 1. otherwise handle later with drop packet
-                        self.send_change_subwindow_size(self.nodes_copy[self.index_copy][COL_NODE],
-                                                        self.nodes_copy[self.index_copy][COL_CHANGE])
-                    self.nodes_copy[self.index_copy][COL_CHANGE] = 0  # after applying change, make change 0
+                        self.send_increase_subwindow_size(self.nodes_copy[r_or_s][self.index_of_nodes_copy[r_or_s]][COL_NODE],
+                                                        self.nodes_copy[r_or_s][self.index_of_nodes_copy[r_or_s]][COL_CHANGE], r_or_s)
+                    self.nodes_copy[r_or_s][self.index_of_nodes_copy[r_or_s]][COL_CHANGE] = 0  # after applying change, make change 0
 
                 return el[COL_NODE]
 
             else:
-                self.send_delete_packet(self.nodes_copy[self.index_copy][COL_NODE])
-                if self.nodes_copy[self.index_copy][COL_CHANGE] < -1:
-                    self.nodes_copy[self.index_copy][COL_CHANGE] += 1
+                self.send_delete_packet(self.nodes_copy[r_or_s][self.index_of_nodes_copy[r_or_s]][COL_NODE], r_or_s)
+                if self.nodes_copy[r_or_s][self.index_of_nodes_copy[r_or_s]][COL_CHANGE] < -1:
+                    self.nodes_copy[r_or_s][self.index_of_nodes_copy[r_or_s]][COL_CHANGE] += 1
                 else:
-                    del self.nodes_copy[self.index_copy]
-                    self.index_copy -= 1
-                return self.get_next_saver()
+                    del self.nodes_copy[r_or_s][self.index_of_nodes_copy[r_or_s]]
+                    self.index_of_nodes_copy[r_or_s] -= 1
+                return self.get_next_saver(packet_type)
 
     @asyncio.coroutine
     def start_streaming(self):
         """
         start sending packets from buffer
         """
-        for pack in self.packet_buffer:
-            pack.saver = self.get_next_saver()
+        for pack in self.dummy_packets_to_send:
+            pack.saver = yield from self.get_next_saver(pack.type)
             print(pack.type + pack.data[0] + ' saver: ' + str(pack.saver))
-            self.distribute(pack)
-            yield from asyncio.sleep(0.5)
+            yield from self.distribute(pack)
+            # yield from asyncio.sleep(0.5)
 
+    @asyncio.coroutine
     def distribute(self, packet):
         """
         distributes packet to different processor nodes
@@ -360,7 +404,7 @@ class Source(node.Node):
             args = packet.data[0]
             self.process_modes(args)
 
-    def load_packet_buffer(self):
+    def load_dummy_packets(self):
         """
         temporary function to fill packet buffer.
         """
@@ -371,7 +415,7 @@ class Source(node.Node):
                 pack = Packet(lines[i])
                 pack.append_data(lines[i + 1])
                 pack.append_data(lines[i + 2])
-                self.packet_buffer.append(pack)
+                self.dummy_packets_to_send.append(pack)
 
 
 # ##########################################################
