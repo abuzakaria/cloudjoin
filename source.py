@@ -384,14 +384,17 @@ class Source(node.Node):
         :param count: int
         :param sw_size: int
         """
-        new_nodes = self.add_node(count, mode=parameters.MODE_ADD_NODE_PENDING)
-        if new_nodes:
-            for nd in new_nodes:  # send to processor size info
-                self.send_set_subwindow_size_of_node(nd[COL_NODE], sw_size)
-                nd[COL_SUBW] = sw_size
-                # for nd in self.pending_nodes:  # update size in pending, which will later be added to source array
-                # if nd in new_nodes:
-                # nd[COL_SUBW] = sw_size
+        if parameters.join_mode == parameters.MODE_COUNT:
+            new_nodes = self.add_node(count, mode=parameters.MODE_ADD_NODE_PENDING)
+            if new_nodes:
+                for nd in new_nodes:  # send to processor size info
+                    self.send_set_subwindow_size_of_node(nd[COL_NODE], sw_size)
+                    nd[COL_SUBW] = sw_size
+                    # for nd in self.pending_nodes:  # update size in pending, which will later be added to source array
+                    # if nd in new_nodes:
+                    # nd[COL_SUBW] = sw_size
+        elif parameters.join_mode == parameters.MODE_TIME:
+            self.add_node(count)
 
     def mode_function_remove_node(self, host, port):
         """
