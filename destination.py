@@ -27,7 +27,6 @@ class Destination(node.Node):
             self.node_index_r_join %= len(self.nodes)
             yield from self.print_packet(packet)
 
-
     @asyncio.coroutine
     def merge_s(self, packet):
         print("merge s")
@@ -35,7 +34,6 @@ class Destination(node.Node):
                 self.node_index_s_join += 1
                 self.node_index_s_join %= len(self.nodes)
                 yield from self.print_packet(packet)
-
 
     @asyncio.coroutine
     def print_packet(self, packet, filename="_result.txt"):
@@ -50,7 +48,6 @@ class Destination(node.Node):
         """
 
         :param packet:
-        :param sender:
         """
         if packet.type == parameters.DATATYPE_R_JOIN:
             asyncio.async(self.merge_r(packet))
@@ -64,9 +61,7 @@ class Destination(node.Node):
             self.nodes = packet.data[:]
             print(self.nodes)
 
-
-
 #Test run
 if __name__ == '__main__':
-    dest = Destination('destination', '127.0.0.1', 12350)
-    dest.run_server()
+    destination = Destination('destination', '127.0.0.1', 12350)
+    destination.run_server()

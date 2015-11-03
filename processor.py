@@ -46,8 +46,16 @@ class Processor(Node):
                               (power_consumption * processing_latency * transmission_latency)
         self.loop = asyncio.get_event_loop()
         self.network_buffer = asyncio.Queue()
-        self.clients = {}
         # sys.stdout = open('_log_' + self.name + '.txt', 'w')
+
+    def register_membership(self, manager):
+        """
+
+        :param manager:
+        """
+        print("registering to membership membership_manager")
+        self.membership_manager = manager
+        self.send_heartbeat(parameters.HEARTBEAT_INTERVAL)
 
     def send_heartbeat(self, interval):
         """
@@ -56,7 +64,7 @@ class Processor(Node):
         """
         p = Packet(parameters.DATATYPE_HEARTBEAT)
         p.append_data(self.cost_value)
-        self.send(p, self.membership_manager[0], self.membership_manager[1])
+        asyncio.async(self.send(p, self.membership_manager[0], self.membership_manager[1]))
         self.loop.call_later(interval, self.send_heartbeat, interval)
 
     def store(self, packet):
@@ -125,7 +133,7 @@ class Processor(Node):
 
             i += 1
 
-        self.send(join_result, self.next_node[0], self.next_node[1])
+        asyncio.async(self.send(join_result, self.next_node[0], self.next_node[1]))
 
     def decrease_size(self, region):
         """
@@ -166,7 +174,6 @@ class Processor(Node):
             if packet.saver == (self.host, self.port):
                 self.store(packet)  # store r
                 self.process_joining(packet)
-
 
         elif packet.type == parameters.DATATYPE_DELETE_R:  # delete packet for R region
             print(packet.type)

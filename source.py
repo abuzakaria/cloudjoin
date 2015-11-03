@@ -85,7 +85,7 @@ class Source(node.Node):
         p = Packet(parameters.DATATYPE_NODE_SERIAL)
         for nd in self.nodes:
             p.data.append(nd[COL_NODE])
-        self.send(p, parameters.MERGER_HOST, parameters.MERGER_PORT)
+        asyncio.async(self.send(p, parameters.MERGER_HOST, parameters.MERGER_PORT))
 
     def send_delete_packet(self, processor_node, storage_type):
         """
@@ -101,7 +101,7 @@ class Source(node.Node):
             print("invalid delete packet")
             return
         print(p.type + ' ' + str(processor_node))
-        self.send(p, processor_node[0], processor_node[1])
+        asyncio.async(self.send(p, processor_node[0], processor_node[1]))
 
     def send_increase_subwindow_size(self, n, change, region):
         """
@@ -119,7 +119,7 @@ class Source(node.Node):
             return
         p.append_data(change)
         print(p.type + ' ' + str(n) + str(change))
-        self.send(p, n[0], n[1])
+        asyncio.async(self.send(p, n[0], n[1]))
 
     def send_set_subwindow_size_of_node(self, n, size):
         """
@@ -130,16 +130,16 @@ class Source(node.Node):
         p = Packet(parameters.DATATYPE_SET_SUBWINDOW_SIZE)
         p.append_data(size)
         print(p.type + ' ' + str(n) + str(size))
-        self.send(p, n[0], n[1])
+        asyncio.async(self.send(p, n[0], n[1]))
 
     def apply_change_in_main_node_list(self, index):
         """
         Receive exactly 2 confirmations and then apply change.
         :param index: int. index of node/flag array to check whether to update
         """
-        if self.flag_apply_change[index] == 0:     # if only one command to apply change, wait for another
+        if self.flag_apply_change[index] == 0:  # if only one command to apply change, wait for another
             self.flag_apply_change[index] += 1
-        elif self.flag_apply_change[index] == 1:    # if already one command appeared before, apply change, reset flag
+        elif self.flag_apply_change[index] == 1:  # if already one command appeared before, apply change, reset flag
             self.flag_apply_change[index] = 0
             # after copying done, apply change in main list
             for i in range(len(self.index_of_nodes)):
@@ -147,7 +147,7 @@ class Source(node.Node):
                 self.nodes[self.index_of_nodes[i]][COL_CHANGE] = 0
                 if self.nodes[self.index_of_nodes[i]][COL_SUBW] == 0:  # empty subw, node deleted
                     del self.nodes[self.index_of_nodes[i]]
-                    del self.flag_apply_change[index]       # delete corresponding flag for node
+                    del self.flag_apply_change[index]  # delete corresponding flag for node
                     self.send_merger_node_serial()
                     self.index_of_nodes[i] -= 1
 
@@ -181,7 +181,7 @@ class Source(node.Node):
 
             if len(self.nodes_copy[r_or_s]) == 0:  # assign flag if copy is loaded
                 self.flag_copy_load_complete[r_or_s] = False
-                self.index_of_nodes[r_or_s] = -1    # init main index when copy again
+                self.index_of_nodes[r_or_s] = -1  # init main index when copy again
                 self.add_pending_nodes()  # only add pending node after end of a cycle
 
             if self.flag_copy_load_complete[r_or_s] is False:  # if copy not loaded, load copy
@@ -191,11 +191,12 @@ class Source(node.Node):
                 self.nodes_copy[r_or_s].append(temp_row)
 
                 if not self.flag_apply_change:
-                    self.flag_apply_change = [0] * len(self.nodes)      # init appy change flag with 0
+                    self.flag_apply_change = [0] * len(self.nodes)  # init appy change flag with 0
 
                 # reducing window size in copy beforehand
                 if self.nodes_copy[r_or_s][self.index_of_nodes[r_or_s]][COL_CHANGE] < 0:
-                    self.nodes_copy[r_or_s][self.index_of_nodes[r_or_s]][COL_SUBW] += self.nodes_copy[r_or_s][self.index_of_nodes[r_or_s]][COL_CHANGE]
+                    self.nodes_copy[r_or_s][self.index_of_nodes[r_or_s]][COL_SUBW] += \
+                        self.nodes_copy[r_or_s][self.index_of_nodes[r_or_s]][COL_CHANGE]
 
                 self.apply_change_in_main_node_list(self.index_of_nodes[r_or_s])
 
@@ -225,12 +226,15 @@ class Source(node.Node):
                 # put change in subw, make change 0, return node
                 else:
 
-                    self.nodes_copy[r_or_s][self.index_of_nodes_copy[r_or_s]][COL_SUBW] = self.nodes_copy[r_or_s][self.index_of_nodes_copy[r_or_s]][COL_CHANGE]
+                    self.nodes_copy[r_or_s][self.index_of_nodes_copy[r_or_s]][COL_SUBW] = \
+                        self.nodes_copy[r_or_s][self.index_of_nodes_copy[r_or_s]][COL_CHANGE]
                     if self.nodes_copy[r_or_s][self.index_of_nodes_copy[r_or_s]][COL_CHANGE] > 0:
-                    # send change size packet if > 1. otherwise handle later with drop packet
-                        self.send_increase_subwindow_size(self.nodes_copy[r_or_s][self.index_of_nodes_copy[r_or_s]][COL_NODE],
-                                                        self.nodes_copy[r_or_s][self.index_of_nodes_copy[r_or_s]][COL_CHANGE], r_or_s)
-                    self.nodes_copy[r_or_s][self.index_of_nodes_copy[r_or_s]][COL_CHANGE] = 0  # after applying change, make change 0
+                        # send change size packet if > 1. otherwise handle later with drop packet
+                        self.send_increase_subwindow_size(
+                            self.nodes_copy[r_or_s][self.index_of_nodes_copy[r_or_s]][COL_NODE],
+                            self.nodes_copy[r_or_s][self.index_of_nodes_copy[r_or_s]][COL_CHANGE], r_or_s)
+                    self.nodes_copy[r_or_s][self.index_of_nodes_copy[r_or_s]][
+                        COL_CHANGE] = 0  # after applying change, make change 0
 
                 return el[COL_NODE]
 
@@ -248,9 +252,11 @@ class Source(node.Node):
         """
         start sending packets from buffer
         """
+        print("startstreaming")
         for pack in self.dummy_packets_to_send:
+            print("loopstartstream")
             pack.saver = yield from self.get_next_saver(pack.type)
-            print(pack.type + pack.data[0] + ' saver: ' + str(pack.saver))
+            # print(pack.type + pack.data[0] + ' saver: ' + str(pack.saver))
             yield from self.distribute(pack)
             # yield from asyncio.sleep(0.5)
 
@@ -260,9 +266,10 @@ class Source(node.Node):
         distributes packet to different processor nodes
         :param packet: packet to distribute
         """
+        print("distribute")
         for row in self.nodes:
             (host, port) = row[COL_NODE]
-            self.send(packet, host, port)
+            yield from self.send(packet, host, port)
 
     def set_sw_change(self, host, port, change):
         """
@@ -361,9 +368,9 @@ class Source(node.Node):
             for nd in new_nodes:  # send to processor size info
                 self.send_set_subwindow_size_of_node(nd[COL_NODE], sw_size)
                 nd[COL_SUBW] = sw_size
-            # for nd in self.pending_nodes:  # update size in pending, which will later be added to source array
-            #     if nd in new_nodes:
-            #         nd[COL_SUBW] = sw_size
+                # for nd in self.pending_nodes:  # update size in pending, which will later be added to source array
+                # if nd in new_nodes:
+                # nd[COL_SUBW] = sw_size
 
     def mode_function_remove_node(self, host, port):
         """
