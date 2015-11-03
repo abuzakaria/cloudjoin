@@ -12,7 +12,7 @@ import sys
 
 # cores or joining nodes.
 class Processor(Node):
-    next_node = None
+
 
     def __init__(self, name=None, host=None, port=None,
                  reliability=parameters.COST_FUNCTION_DEFAULT_PARAM,
@@ -40,6 +40,7 @@ class Processor(Node):
         self.name = name  # used only for printing purpose, no logic
         self.S_Storage = []
         self.R_Storage = []
+        self.next_node = None
         self.subwindow_size_r = self.subwindow_size_s = parameters.SUBWINDOW_DEFAULT_SIZE
         if reliability and availability and throughput and power_consumption and processing_latency and transmission_latency:
             self.cost_value = (reliability * availability * throughput) / \
@@ -87,7 +88,7 @@ class Processor(Node):
         # if count based join, check both queues' length, if less then store,
         # if equal then drop the oldest of the two queue and store,
         # else something wrong
-        if parameters.parameter_mode == parameters.MODE_COUNT:
+        if parameters.join_mode == parameters.MODE_COUNT:
             if current_size == max_size and max_size > 0:
                 storage.pop(0)
             elif current_size > max_size:
@@ -95,7 +96,7 @@ class Processor(Node):
             storage.append(packet)  # storing here
 
         # if time based join, just store. deletion will take place during joining
-        elif parameters.parameter_mode == parameters.MODE_TIME:
+        elif parameters.join_mode == parameters.MODE_TIME:
             packet.store_time = utils.get_millisecond()
             storage.append(packet)
 
@@ -120,8 +121,8 @@ class Processor(Node):
             # print(str(len(host_storage)) + ' , ' + str(i))
             host = host_storage[i]
             # deletion in time based. count based deletion is during store.
-            if parameters.parameter_mode == parameters.MODE_TIME:
-                if utils.get_millisecond() > host.store_time + parameters.SUBWINDOW_DEFAULT_TIME:
+            if parameters.join_mode == parameters.MODE_TIME:
+                if utils.get_millisecond() > host.store_time + parameters.subwindow_time:
                     host_storage.remove(host)
                     # print("removed: " + str(host.type) + str(host.data[0]))
                     continue
@@ -139,7 +140,7 @@ class Processor(Node):
         """
         remove number of packets and decrease size by 1
         """
-        if parameters.parameter_mode == parameters.MODE_COUNT:
+        if parameters.join_mode == parameters.MODE_COUNT:
             if region == 0:
                 if len(self.R_Storage):
                     self.R_Storage.pop(0)
@@ -154,7 +155,7 @@ class Processor(Node):
         Increase subwindow size by change
         :param change: int
         """
-        if parameters.parameter_mode == parameters.MODE_COUNT:
+        if parameters.join_mode == parameters.MODE_COUNT:
             if change > 0:
                 if region == 0:
                     self.subwindow_size_r += change
@@ -197,7 +198,6 @@ class Processor(Node):
             size = packet.data[0]
             print(packet.type + ' ' + str(size))
             self.subwindow_size_r = self.subwindow_size_s = size
-
 
 if __name__ == '__main__':
     p = Processor('12345', '127.0.0.1', 12345)

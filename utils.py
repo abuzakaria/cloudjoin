@@ -9,7 +9,7 @@ def set_subwindow_time(t):
     Sets timeout for processors. time based subwindow
     :param time:
     """
-    parameters.SUBWINDOW_DEFAULT_TIME = t
+    parameters.subwindow_time = t
 
 
 def get_millisecond():
