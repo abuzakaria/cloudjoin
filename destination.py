@@ -71,5 +71,5 @@ class Destination(node.Node):
 
 #Test run
 if __name__ == '__main__':
-    destination = Destination('destination', '127.0.0.1', 12350)
+    destination = Destination('destination', parameters.MERGER_HOST, parameters.MERGER_PORT)
     destination.run_server()

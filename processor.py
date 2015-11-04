@@ -6,7 +6,7 @@ from node import Node
 import asyncio
 import parameters
 from packet import Packet
-
+from sys import argv, exit
 
 # cores or joining nodes.
 class Processor(Node):
@@ -189,7 +189,13 @@ class Processor(Node):
             self.subwindow_size_r = self.subwindow_size_s = size
 
 if __name__ == '__main__':
-    p = Processor('12345', '127.0.0.1', 12345)
-    p.register_membership(('127.0.0.1', 12344))
-    p.next_node = ('127.0.0.1', 12350)
+    count = len(argv)
+    if count == 4:
+        p = Processor(str(argv[1]), str(argv[2]), int(argv[3]))
+    elif count == 10:
+        p = Processor(str(argv[1]), str(argv[2]), int(argv[3]), int(argv[4]), int(argv[5]), int(argv[6]), int(argv[7]), int(argv[8]), int(argv[9]))
+    else:
+        exit()
+    p.register_membership((parameters.SOURCE_HOST, parameters.SOURCE_PORT))
+    p.next_node = (parameters.MERGER_HOST, parameters.MERGER_PORT)
     p.run_server()

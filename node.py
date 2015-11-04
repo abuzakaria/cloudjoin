@@ -64,20 +64,24 @@ class Node:
         """
         Wrapper to run server that receives packets
         """
-        job = asyncio.start_server(self.handle_packet, self.host, self.port, loop=self.loop, reuse_address=True)
-        server = self.loop.run_until_complete(job)
-        asyncio.async(self.watch_buffer())
-
-        print('MSG: Serving on {}'.format(server.sockets[0].getsockname()))
         try:
+            job = asyncio.start_server(self.handle_packet, self.host, self.port, loop=self.loop, reuse_address=True)
+            server = self.loop.run_until_complete(job)
+            asyncio.async(self.watch_buffer())
+
+            print('MSG: Serving on {}'.format(server.sockets[0].getsockname()))
+
             self.loop.run_forever()
         except KeyboardInterrupt:
+            # Close the server
+            server.close()
+            self.loop.run_until_complete(server.wait_closed())
+            self.loop.close()
             pass
-
-        # Close the server
-        server.close()
-        self.loop.run_until_complete(server.wait_closed())
-        self.loop.close()
+        except Exception as e:
+            print(e)
+            print(self.host)
+            print(self.port)
 
     @asyncio.coroutine
     def handle_packet(self, reader, writer):
@@ -94,8 +98,8 @@ class Node:
     def watch_buffer(self):
         while True:
             row = yield from self.network_buffer.get()
-            packet = pickle.loads(row)
-            if packet:
+            if row:
+                packet = pickle.loads(row)
                 self.do(packet)
 
     def do(self, packet):
