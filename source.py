@@ -18,18 +18,6 @@ COL_CHANGE = 2
 
 # source or first node of the network
 class Source(node.Node):
-    data_packets_array = deque()
-
-    nodes = []
-    index_of_nodes = [-1, -1]
-
-    nodes_copy = [[], []]
-    index_of_nodes_copy = [-1, -1]
-    flag_copy_load_complete = [False, False]
-
-    flag_apply_change = []
-
-    pending_nodes = []
 
     def __init__(self, name=None, host=None, port=None):
         """
@@ -38,18 +26,24 @@ class Source(node.Node):
         :param host: host of node. i.e.: 127.0.0.1
         :param port: port of node
         """
-        if name:
-            self.name = name
-        if host:
-            self.host = host
-        if port:
-            self.port = port
-        self.loop = asyncio.get_event_loop()
-        self.network_buffer = asyncio.Queue()
-        self.load_data_packets_from_file()
-        self.membership_manager = MembershipManager(self.loop)
+        super().__init__(name, host, port)
 
         self.cached_length_nodes = 0
+        self.data_packets_array = deque()
+
+        self.nodes = []
+        self.index_of_nodes = [-1, -1]
+
+        self.nodes_copy = [[], []]
+        self.index_of_nodes_copy = [-1, -1]
+        self.flag_copy_load_complete = [False, False]
+
+        self.flag_apply_change = []
+
+        self.pending_nodes = []
+
+        self.load_data_packets_from_file()
+        self.membership_manager = MembershipManager(self.loop)
 
     def add_node(self, n, mode=parameters.MODE_ADD_NODE_DEFAULT):
         """
@@ -92,8 +86,8 @@ class Source(node.Node):
     def send_delete_packet(self, processor_node, storage_type):
         """
         send packet to delete element and decrease size of processor node
-        :param type: int. 0 means delete R, 1 means delete S
-        :param processor_node:
+        :param storage_type: int. 0 means delete R, 1 means delete S
+        :param processor_node: node
         """
         if storage_type == 0:
             p = Packet(parameters.DATATYPE_DELETE_R)
@@ -251,7 +245,6 @@ class Source(node.Node):
                     self.index_of_nodes_copy[r_or_s] -= 1
                 return self.get_next_saver(packet_type)
 
-
     @asyncio.coroutine
     def start_streaming(self):
         """
@@ -261,7 +254,7 @@ class Source(node.Node):
             pack.saver = yield from self.get_next_saver(pack.type)
             # print(pack.type + pack.data[0] + ' saver: ' + str(pack.saver))
             yield from self.distribute(pack)
-            yield from asyncio.sleep(0.5)
+            # yield from asyncio.sleep(0.5)		# only to test
 
     @asyncio.coroutine
     def distribute(self, packet):

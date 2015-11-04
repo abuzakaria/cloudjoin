@@ -1,4 +1,3 @@
-import copy
 import utils
 
 __author__ = 'Zakaria'
@@ -7,37 +6,30 @@ from node import Node
 import asyncio
 import parameters
 from packet import Packet
-import sys
 
 
 # cores or joining nodes.
 class Processor(Node):
 
-
-    def __init__(self, name=None, host=None, port=None,
-                 reliability=parameters.COST_FUNCTION_DEFAULT_PARAM,
-                 availability=parameters.COST_FUNCTION_DEFAULT_PARAM,
-                 throughput=parameters.COST_FUNCTION_DEFAULT_PARAM,
+    def __init__(self, name=None, host=None, port=None, reliability=parameters.COST_FUNCTION_DEFAULT_PARAM,
+                 availability=parameters.COST_FUNCTION_DEFAULT_PARAM, throughput=parameters.COST_FUNCTION_DEFAULT_PARAM,
                  power_consumption=parameters.COST_FUNCTION_DEFAULT_PARAM,
                  processing_latency=parameters.COST_FUNCTION_DEFAULT_PARAM,
-                 transmission_latency=parameters.COST_FUNCTION_DEFAULT_PARAM,
-    ):
+                 transmission_latency=parameters.COST_FUNCTION_DEFAULT_PARAM):
         """
 
 
-        :param reliability:
-        :param availability:
-        :param throughput:
-        :param power_consumption:
-        :param processing_latency:
-        :param transmission_latency:
-        :param name:
-        :param host:
-        :param port:
-        """
-        self.host = host
-        self.port = port
-        self.name = name  # used only for printing purpose, no logic
+            :param reliability:
+            :param availability:
+            :param throughput:
+            :param power_consumption:
+            :param processing_latency:
+            :param transmission_latency:
+            :param name:
+            :param host:
+            :param port:
+            """
+        super().__init__(name, host, port)
         self.S_Storage = []
         self.R_Storage = []
         self.next_node = None
@@ -45,9 +37,6 @@ class Processor(Node):
         if reliability and availability and throughput and power_consumption and processing_latency and transmission_latency:
             self.cost_value = (reliability * availability * throughput) / \
                               (power_consumption * processing_latency * transmission_latency)
-        self.loop = asyncio.get_event_loop()
-        self.network_buffer = asyncio.Queue()
-        # sys.stdout = open('_log_' + self.name + '.txt', 'w')
 
     def register_membership(self, manager):
         """
@@ -129,8 +118,8 @@ class Processor(Node):
 
             print(host.type + str(host.data[0]) + ' X ' + guest.type + str(guest.data[0]))
 
-            # if host.data[parameters.JOIN_CRITERION_INDEX] == guest.data[parameters.JOIN_CRITERION_INDEX]:
-            join_result.data.append(host.data + guest.data)
+            if host.data[parameters.JOIN_CRITERION_INDEX] == guest.data[parameters.JOIN_CRITERION_INDEX]:
+                join_result.data.append(host.data + guest.data)
 
             i += 1
 
