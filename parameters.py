@@ -2,7 +2,7 @@ __author__ = 'Zakaria'
 
 MODE_TIME = "time"
 MODE_COUNT = "count"
-join_mode = MODE_TIME
+join_mode = MODE_COUNT
 
 
 SUBWINDOW_DEFAULT_SIZE = 0

@@ -1,3 +1,5 @@
+import asyncio
+
 __author__ = 'Zakaria'
 
 import utils
@@ -38,6 +40,7 @@ class MembershipManager:
         self.active_nodes.sort(key=lambda x: x[COL_COST], reverse=True)     # sorting active nodes by descending cost
         print("After adding, available nodes:\n\t" + ("\n\t".join(map(str, self.active_nodes))))
 
+    @asyncio.coroutine
     def check_active_nodes(self, interval):
         """
         Checks inactive node after interval
@@ -48,7 +51,8 @@ class MembershipManager:
             if row[COL_TIME] + interval < current_time:     # inactive node remove
                 self.active_nodes.remove(row)
                 print("After removing inactive node, Active nodes:\n\t" + ("\n\t".join(map(str, self.active_nodes))))
-        self.loop.call_later(interval, self.check_active_nodes, interval)
+        yield from asyncio.sleep(interval)
+        yield from self.check_active_nodes(interval)
 
     def handle_heartbeat(self, packet):
         """
@@ -58,7 +62,7 @@ class MembershipManager:
         self.add_node_to_list((packet.sender['host'], packet.sender['port']), packet.data[0])
         if self.is_membership_protocol_running is False:
             self.is_membership_protocol_running = True
-            self.check_active_nodes(parameters.CHECK_INTERVAL)
+            asyncio.async(self.check_active_nodes(parameters.CHECK_INTERVAL))
 
     def get_nodes(self, n):
         """

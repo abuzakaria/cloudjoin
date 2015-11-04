@@ -127,7 +127,7 @@ class Processor(Node):
                     # print("removed: " + str(host.type) + str(host.data[0]))
                     continue
 
-            # print(host.type + str(host.data[0]) + ' X ' + guest.type + str(guest.data[0]))
+            print(host.type + str(host.data[0]) + ' X ' + guest.type + str(guest.data[0]))
 
             # if host.data[parameters.JOIN_CRITERION_INDEX] == guest.data[parameters.JOIN_CRITERION_INDEX]:
             join_result.data.append(host.data + guest.data)
@@ -173,8 +173,8 @@ class Processor(Node):
         if packet.type == parameters.DATATYPE_R_STREAM or packet.type == parameters.DATATYPE_S_STREAM:  # r packet
             print(packet.type + packet.data[0] + str(packet.saver))
             if packet.saver == (self.host, self.port):
-                self.store(packet)  # store r
-                self.process_joining(packet)
+                self.store(packet)  # store if saver matches
+            self.process_joining(packet)
 
         elif packet.type == parameters.DATATYPE_DELETE_R:  # delete packet for R region
             print(packet.type)

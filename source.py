@@ -49,6 +49,8 @@ class Source(node.Node):
         self.load_data_packets_from_file()
         self.membership_manager = MembershipManager(self.loop)
 
+        self.cached_length_nodes = 0
+
     def add_node(self, n, mode=parameters.MODE_ADD_NODE_DEFAULT):
         """
         Adds node from membership manager to source's own list
@@ -137,7 +139,6 @@ class Source(node.Node):
         Receive exactly 2 confirmations and then apply change.
         :param index: int. index of node/flag array to check whether to update
         """
-        print(self.flag_apply_change)
         if self.flag_apply_change[index] == 0:  # if only one command to apply change, wait for another
             self.flag_apply_change[index] += 1
         elif self.flag_apply_change[index] == 1:  # if already one command appeared before, apply change, reset flag
@@ -151,6 +152,7 @@ class Source(node.Node):
                     del self.flag_apply_change[index]  # delete corresponding flag for node
                     self.send_merger_node_serial()
                     self.index_of_nodes[i] -= 1
+        print(self.flag_apply_change)
 
     @asyncio.coroutine
     def get_next_saver(self, packet_type):
@@ -181,30 +183,31 @@ class Source(node.Node):
 
         # else if count based, complicated process
         elif parameters.join_mode == parameters.MODE_COUNT:
-
+            # this block is for (re)initializing before each cycle starts
             if len(self.nodes_copy[r_or_s]) == 0:  # assign flag if copy is loaded
                 self.flag_copy_load_complete[r_or_s] = False
                 self.index_of_nodes[r_or_s] = -1  # init main index when copy again
+                self.index_of_nodes_copy[r_or_s] = -1   # init copy index
+                self.cached_length_nodes = len(self.nodes)      # cache nodes length, so that deleting node does not affect flag_copy_load_complete becoming true
                 self.add_pending_nodes()  # only add pending node after end of a cycle
+                self.flag_apply_change = [0] * len(self.nodes)  # init apply change flag with 0
 
-            if self.flag_copy_load_complete[r_or_s] is False:  # if copy not loaded, load copy
+            if self.flag_copy_load_complete[r_or_s] is False:  # copy will be loaded one by one from main node list
                 self.index_of_nodes[r_or_s] += 1
                 self.index_of_nodes[r_or_s] %= len(self.nodes)
                 temp_row = deepcopy(self.nodes[self.index_of_nodes[r_or_s]])
                 self.nodes_copy[r_or_s].append(temp_row)
 
-                if not self.flag_apply_change:
-                    self.flag_apply_change = [0] * len(self.nodes)  # init apply change flag with 0
-
                 # reducing window size in copy beforehand
                 if self.nodes_copy[r_or_s][self.index_of_nodes[r_or_s]][COL_CHANGE] < 0:
                     self.nodes_copy[r_or_s][self.index_of_nodes[r_or_s]][COL_SUBW] += self.nodes_copy[r_or_s][self.index_of_nodes[r_or_s]][COL_CHANGE]
 
-                # after copying done, apply change in main list
-                self.del_node_from_main_node_list(self.index_of_nodes[r_or_s])
+                # after copying done, if subwindow 0, remove node from main list (after 2 prompt from r and s)
+                if self.nodes_copy[r_or_s][self.index_of_nodes[r_or_s]][COL_SUBW] == 0:
+                    self.del_node_from_main_node_list(self.index_of_nodes[r_or_s])
 
-                # update flag true if copy done
-                if len(self.nodes) == len(self.nodes_copy[r_or_s]):
+                # update flag true if copy done. compare length with cached length, because nodes maybe already deleted in main node list
+                if self.cached_length_nodes == len(self.nodes_copy[r_or_s]):
                     self.flag_copy_load_complete[r_or_s] = True
 
             self.index_of_nodes_copy[r_or_s] += 1
@@ -222,16 +225,14 @@ class Source(node.Node):
 
                 # if change is 0, remove element, adjust index, return node
                 if self.nodes_copy[r_or_s][self.index_of_nodes_copy[r_or_s]][COL_CHANGE] == 0:
-
                     del self.nodes_copy[r_or_s][self.index_of_nodes_copy[r_or_s]]
                     self.index_of_nodes_copy[r_or_s] -= 1
 
                 # put change in subw, make change 0, return node
                 else:
-
                     self.nodes_copy[r_or_s][self.index_of_nodes_copy[r_or_s]][COL_SUBW] = self.nodes_copy[r_or_s][self.index_of_nodes_copy[r_or_s]][COL_CHANGE]
                     if self.nodes_copy[r_or_s][self.index_of_nodes_copy[r_or_s]][COL_CHANGE] > 0:
-                        # send change size packet if > 1. otherwise handle later with drop packet
+                        # send increase size packet if > 1. otherwise handle later with drop packet
                         self.send_increase_subwindow_size(self.nodes_copy[r_or_s][self.index_of_nodes_copy[r_or_s]][COL_NODE],
                                                           self.nodes_copy[r_or_s][self.index_of_nodes_copy[r_or_s]][COL_CHANGE],
                                                           r_or_s)
@@ -249,6 +250,7 @@ class Source(node.Node):
                     del self.nodes_copy[r_or_s][self.index_of_nodes_copy[r_or_s]]
                     self.index_of_nodes_copy[r_or_s] -= 1
                 return self.get_next_saver(packet_type)
+
 
     @asyncio.coroutine
     def start_streaming(self):
@@ -269,6 +271,7 @@ class Source(node.Node):
         """
         for row in self.nodes:
             (host, port) = row[COL_NODE]
+            print(packet.type + packet.data[0] + " " + str(port))
             yield from self.send(packet, host, port)
 
     @asyncio.coroutine
