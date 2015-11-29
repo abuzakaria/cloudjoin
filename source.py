@@ -444,7 +444,7 @@ class Source(node.Node):
 
 
 # ##########################################################
-
+from sys import argv
 if __name__ == '__main__':
-    src = Source('source', parameters.SOURCE_HOST, parameters.SOURCE_PORT)
+    src = Source('source', argv[1], argv[2])
     src.run_server()
