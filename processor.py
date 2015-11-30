@@ -121,8 +121,10 @@ class Processor(Node):
             if host.data[parameters.JOIN_CRITERION_INDEX] == guest.data[parameters.JOIN_CRITERION_INDEX]:
                 join_result.data.append(host.data + guest.data)
 
-            i += 1
 
+            i += 1
+        join_result.latency = guest.latency
+        join_result.latency_type = guest.type + str(guest.data[0])
         asyncio.async(self.send(join_result, self.next_node[0], self.next_node[1]))
 
     def decrease_size(self, region):

@@ -1,4 +1,5 @@
 import asyncio
+import time
 import parameters
 
 __author__ = 'Zakaria'
@@ -21,6 +22,7 @@ class Destination(node.Node):
 
         self.is_merging_r = False
         self.is_merging_s = False
+        self.latency_log = open('latency.log', 'w')
 
     @asyncio.coroutine
     def merge_r(self, packet):
@@ -29,6 +31,8 @@ class Destination(node.Node):
             self.node_index_r_join += 1
             self.node_index_r_join %= len(self.nodes)
             # yield from self.print_packet(packet)
+            yield from self.print_inline(packet)
+            yield from self.print_latency(packet)
 
     @asyncio.coroutine
     def merge_s(self, packet):
@@ -37,6 +41,20 @@ class Destination(node.Node):
             self.node_index_s_join += 1
             self.node_index_s_join %= len(self.nodes)
             # yield from self.print_packet(packet)
+            yield from self.print_inline(packet)
+            yield from self.print_latency(packet)
+
+    @asyncio.coroutine
+    def print_latency(self, packet):
+        latency = str(time.time() - packet.latency)
+        self.latency_log.write(packet.latency_type + '\t' + latency + '\n')
+        self.latency_log.flush()
+
+    @asyncio.coroutine
+    def print_inline(self, packet):
+        for p in packet.data:
+            print(packet.type + ' : ' + json.dumps(p))
+        print("----------------------------------------")
 
     @asyncio.coroutine
     def print_packet(self, packet, filename="_result.txt"):

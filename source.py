@@ -1,4 +1,5 @@
 import json
+import time
 from membership_manager import MembershipManager
 
 __author__ = 'Zakaria'
@@ -251,6 +252,7 @@ class Source(node.Node):
         start sending packets from buffer
         """
         for pack in self.data_packets_array:
+            pack.latency = time.time()
             pack.saver = yield from self.get_next_saver(pack.type)
             # print(pack.type + pack.data[0] + ' saver: ' + str(pack.saver))
             yield from self.distribute(pack)
