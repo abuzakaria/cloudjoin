@@ -134,6 +134,7 @@ class Source(node.Node):
         Receive exactly 2 confirmations and then apply change.
         :param index: int. index of node/flag array to check whether to update
         """
+        print("test")
         if self.flag_apply_change[index] == 0:  # if only one command to apply change, wait for another
             self.flag_apply_change[index] += 1
         elif self.flag_apply_change[index] == 1:  # if already one command appeared before, apply change, reset flag
@@ -252,7 +253,7 @@ class Source(node.Node):
         start sending packets from buffer
         """
         for pack in self.data_packets_array:
-            pack.latency = time.time()
+            pack.latency = utils.get_millisecond()
             pack.saver = yield from self.get_next_saver(pack.type)
             # print(pack.type + pack.data[0] + ' saver: ' + str(pack.saver))
             yield from self.distribute(pack)

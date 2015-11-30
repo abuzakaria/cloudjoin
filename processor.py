@@ -124,7 +124,7 @@ class Processor(Node):
 
             i += 1
         join_result.latency = guest.latency
-        join_result.latency_type = guest.type + str(guest.data[0])
+        join_result.latency_type = str(guest.data[0])
         asyncio.async(self.send(join_result, self.next_node[0], self.next_node[1]))
 
     def decrease_size(self, region):

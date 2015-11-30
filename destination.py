@@ -1,6 +1,7 @@
 import asyncio
 import time
 import parameters
+import utils
 
 __author__ = 'Zakaria'
 
@@ -42,11 +43,11 @@ class Destination(node.Node):
             self.node_index_s_join %= len(self.nodes)
             # yield from self.print_packet(packet)
             yield from self.print_inline(packet)
-            yield from self.print_latency(packet)
+            # yield from self.print_latency(packet)
 
     @asyncio.coroutine
     def print_latency(self, packet):
-        latency = str(time.time() - packet.latency)
+        latency = str(utils.get_millisecond() - packet.latency)
         self.latency_log.write(packet.latency_type + '\t' + latency + '\n')
         self.latency_log.flush()
 
