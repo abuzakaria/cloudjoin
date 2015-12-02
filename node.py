@@ -65,7 +65,7 @@ class Node:
         Wrapper to run server that receives packets
         """
         try:
-            job = asyncio.start_server(self.handle_packet, self.host, self.port, loop=self.loop, reuse_address=True)
+            job = asyncio.start_server(self.handle_packet, '0.0.0.0', 80, loop=self.loop, reuse_address=True)
             server = self.loop.run_until_complete(job)
             asyncio.async(self.watch_buffer())
 
