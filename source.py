@@ -1,5 +1,4 @@
 import json
-import time
 from membership_manager import MembershipManager
 
 __author__ = 'Zakaria'
@@ -136,19 +135,13 @@ class Source(node.Node):
         """
         print("test")
         if self.flag_apply_change[index] == 0:  # if only one command to apply change, wait for another
-            self.flag_apply_change[index] += 1
+            self.flag_apply_change[index] = 1
+            return False
         elif self.flag_apply_change[index] == 1:  # if already one command appeared before, apply change, reset flag
-            self.flag_apply_change[index] = 0
-            # after copying done, apply change in main list
-            for i in range(len(self.index_of_nodes)):
-                self.nodes[self.index_of_nodes[i]][COL_SUBW] += self.nodes[self.index_of_nodes[i]][COL_CHANGE]
-                self.nodes[self.index_of_nodes[i]][COL_CHANGE] = 0
-                if self.nodes[self.index_of_nodes[i]][COL_SUBW] == 0:  # empty subw, node deleted
-                    del self.nodes[self.index_of_nodes[i]]
-                    del self.flag_apply_change[index]  # delete corresponding flag for node
-                    self.send_merger_node_serial()
-                    self.index_of_nodes[i] -= 1
-        print(self.flag_apply_change)
+            del self.nodes[index]
+            del self.flag_apply_change[index]  # delete corresponding flag for node
+            self.send_merger_node_serial()
+            return True
 
     @asyncio.coroutine
     def get_next_saver(self, packet_type):
@@ -186,7 +179,7 @@ class Source(node.Node):
                 self.index_of_nodes_copy[r_or_s] = -1   # init copy index
                 self.cached_length_nodes = len(self.nodes)      # cache nodes length, so that deleting node does not affect flag_copy_load_complete becoming true
                 self.add_pending_nodes()  # only add pending node after end of a cycle
-                self.flag_apply_change = [0] * len(self.nodes)  # init apply change flag with 0
+                # self.flag_apply_change = [0] * len(self.nodes)  # init apply change flag with 0
 
             if self.flag_copy_load_complete[r_or_s] is False:  # copy will be loaded one by one from main node list
                 self.index_of_nodes[r_or_s] += 1
@@ -200,7 +193,8 @@ class Source(node.Node):
 
                 # after copying done, if subwindow 0, remove node from main list (after 2 prompt from r and s)
                 if self.nodes_copy[r_or_s][self.index_of_nodes[r_or_s]][COL_SUBW] == 0:
-                    self.del_node_from_main_node_list(self.index_of_nodes[r_or_s])
+                    if self.del_node_from_main_node_list(self.index_of_nodes[r_or_s]):      #returns true if deleted, false if just increased counter
+                        self.index_of_nodes[r_or_s] -= 1
 
                 # update flag true if copy done. compare length with cached length, because nodes maybe already deleted in main node list
                 if self.cached_length_nodes == len(self.nodes_copy[r_or_s]):
@@ -252,6 +246,7 @@ class Source(node.Node):
         """
         start sending packets from buffer
         """
+        self.flag_apply_change = [0] * len(self.nodes)
         for pack in self.data_packets_array:
             pack.latency = utils.get_millisecond()
             pack.saver = yield from self.get_next_saver(pack.type)
