@@ -128,20 +128,31 @@ class Source(node.Node):
         print(p.type + ' ' + str(n) + str(size))
         asyncio.async(self.send(p, n[0], n[1]))
 
-    def del_node_from_main_node_list(self, index):
+    def apply_change_in_main_node_list(self, index, packet_type):
         """
         Receive exactly 2 confirmations and then apply change.
         :param index: int. index of node/flag array to check whether to update
         """
-        print("test")
-        if self.flag_apply_change[index] == 0:  # if only one command to apply change, wait for another
-            self.flag_apply_change[index] = 1
-            return False
-        elif self.flag_apply_change[index] == 1:  # if already one command appeared before, apply change, reset flag
-            del self.nodes[index]
-            del self.flag_apply_change[index]  # delete corresponding flag for node
-            self.send_merger_node_serial()
-            return True
+        if self.nodes[index][COL_CHANGE]:
+            if self.flag_apply_change[index] == 0:  # if only one command to apply change, wait for another
+                self.flag_apply_change[index] = packet_type
+                return False
+            elif self.flag_apply_change[index] == packet_type:  # if same stream sends request
+                return False
+            else:                               # if already one command appeared before, apply change, reset flag
+                if self.nodes[index][COL_SUBW] == -1 * self.nodes[index][COL_CHANGE]:
+                    del self.nodes[index]
+                    del self.flag_apply_change[index]  # delete corresponding flag for node
+                    self.send_merger_node_serial()
+                    return True
+                elif self.nodes[index][COL_CHANGE] != 0:
+                    print(packet_type)
+                    print(self.nodes[index])
+                    self.flag_apply_change[index] = 0
+                    self.nodes[index][COL_SUBW] += self.nodes[index][COL_CHANGE]
+                    self.nodes[index][COL_CHANGE] = 0
+
+
 
     @asyncio.coroutine
     def get_next_saver(self, packet_type):
@@ -186,6 +197,7 @@ class Source(node.Node):
                 self.index_of_nodes[r_or_s] %= len(self.nodes)
                 temp_row = deepcopy(self.nodes[self.index_of_nodes[r_or_s]])
                 self.nodes_copy[r_or_s].append(temp_row)
+                self.apply_change_in_main_node_list(self.index_of_nodes[r_or_s], packet_type)
 
                 # reducing window size in copy beforehand
                 if self.nodes_copy[r_or_s][self.index_of_nodes[r_or_s]][COL_CHANGE] < 0:
@@ -193,7 +205,7 @@ class Source(node.Node):
 
                 # after copying done, if subwindow 0, remove node from main list (after 2 prompt from r and s)
                 if self.nodes_copy[r_or_s][self.index_of_nodes[r_or_s]][COL_SUBW] == 0:
-                    if self.del_node_from_main_node_list(self.index_of_nodes[r_or_s]):      #returns true if deleted, false if just increased counter
+                    if self.apply_change_in_main_node_list(self.index_of_nodes[r_or_s], packet_type):      #returns true if deleted, false if just increased counter
                         self.index_of_nodes[r_or_s] -= 1
 
                 # update flag true if copy done. compare length with cached length, because nodes maybe already deleted in main node list
@@ -233,9 +245,12 @@ class Source(node.Node):
                 return el[COL_NODE]
 
             else:
+                if self.nodes_copy[r_or_s][self.index_of_nodes_copy[r_or_s]][COL_CHANGE]:
+                    self.nodes_copy[r_or_s][self.index_of_nodes_copy[r_or_s]][COL_SUBW] = self.nodes_copy[r_or_s][self.index_of_nodes_copy[r_or_s]][COL_CHANGE]
+                    self.nodes_copy[r_or_s][self.index_of_nodes_copy[r_or_s]][COL_CHANGE] = 0
                 self.send_delete_packet(self.nodes_copy[r_or_s][self.index_of_nodes_copy[r_or_s]][COL_NODE], r_or_s)
-                if self.nodes_copy[r_or_s][self.index_of_nodes_copy[r_or_s]][COL_CHANGE] < -1:
-                    self.nodes_copy[r_or_s][self.index_of_nodes_copy[r_or_s]][COL_CHANGE] += 1
+                if self.nodes_copy[r_or_s][self.index_of_nodes_copy[r_or_s]][COL_SUBW] < -1:
+                    self.nodes_copy[r_or_s][self.index_of_nodes_copy[r_or_s]][COL_SUBW] += 1
                 else:
                     del self.nodes_copy[r_or_s][self.index_of_nodes_copy[r_or_s]]
                     self.index_of_nodes_copy[r_or_s] -= 1
@@ -251,7 +266,7 @@ class Source(node.Node):
             pack.saver = yield from self.get_next_saver(pack.type)
             # print(pack.type + pack.data[0] + ' saver: ' + str(pack.saver))
             yield from self.distribute(pack)
-            # yield from asyncio.sleep(0.5)		# only to test
+            # yield from asyncio.sleep(0.2)		# only to test
 
     @asyncio.coroutine
     def distribute(self, packet):
