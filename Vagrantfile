@@ -7,8 +7,7 @@ boxes = [
         :name => "source",
         :ip => "10.10.10.2",
         :mem => "512",
-        :cpu => "1",
-        #:command => "sudo python3 source.py 0.0.0.0 80"
+        :cpu => "1"
     },
     {
         :name => "p1",
@@ -48,9 +47,8 @@ Vagrant.configure(2) do |config|
 
       config.vm.provider "virtualbox" do |v|
         v.customize ["modifyvm", :id, "--memory", opts[:mem]]
-#        v.customize ["modifyvm", :id, "--cpus", opts[:cpu]]
+        v.customize ["modifyvm", :id, "--cpus", opts[:cpu]]
       end
-#     config.vm.provision :shell, inline = opts[:command]
       config.vm.network "private_network", ip: opts[:ip]
     end
   end
