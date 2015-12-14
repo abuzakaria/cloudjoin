@@ -70,6 +70,7 @@ class Destination(node.Node):
         # print(packet.type)
 
 #Test run
+from sys import argv
 if __name__ == '__main__':
-    destination = Destination('destination', parameters.MERGER_HOST, parameters.MERGER_PORT)
+    destination = Destination('destination', argv[1], argv[2])
     destination.run_server()
